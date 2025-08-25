@@ -4,8 +4,9 @@ on:
   workflow_call:
 
 jobs:
-  gitleaks scan:
-    runs-on: ubuntu-24.04
+  gitleaks_scan:
+    name: Run a secret scan using Gitleaks
+    runs-on: ubuntu-22.04
 
     steps:
       - name: Checkout Repository
