@@ -5,6 +5,7 @@ on:
 
 jobs:
   gitleaks_scan:
+    name: Run a secret scan using Gitleaks
     runs-on: centreon-security
 
     steps:
