@@ -4,9 +4,9 @@ on:
   workflow_call:
 
 jobs:
-  gitleaks_scan:
-    name: Run a secret scan using Gitleaks
-    runs-on: centreon-security
+  secret-scan:
+    name: Run Gitleaks
+    runs-on: ${{ github.repository_visibility != 'public' && 'centreon-security' || 'ubuntu-24.04' }}
 
     steps:
       - name: Checkout Repository

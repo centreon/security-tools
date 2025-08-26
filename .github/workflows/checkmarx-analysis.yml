@@ -8,6 +8,9 @@ on:
       module_directory:
         required: true
         type: string
+      exclude_list:
+        required: false
+        type: string
 
     secrets:
       base_uri:
@@ -21,8 +24,8 @@ on:
 
 jobs:
   code-analysis:
-    name: Run a pipeline scan using Checkmarx
-    runs-on: centreon-security
+    name: Run Checkmarx scan
+    runs-on: ${{ github.repository_visibility != 'public' && 'centreon-security' || 'ubuntu-24.04' }}
 
     steps:
       - name: routing
@@ -64,4 +67,4 @@ jobs:
           cx_client_id: ${{ secrets.cx_client_id }}
           cx_client_secret: ${{ secrets.cx_client_secret }}
           source_dir: "./${{ inputs.module_directory }}"
-          additional_params: --scan-types "sast,sca,api-security" ${{ env.scan_mode }}
+          additional_params: --scan-types "sast,sca,api-security" ${{ env.scan_mode }} ${{ inputs.exclude_list }}
