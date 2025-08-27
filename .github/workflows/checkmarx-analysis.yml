@@ -53,6 +53,18 @@ jobs:
           echo "enable_analysis=$ENABLE_QG" >> $GITHUB_ENV
           cat $GITHUB_ENV
 
+      - name: Check exclusions consistency
+        run: |
+          regex='^([a-zA-Z0-9\*]+[a-zA-Z0-9\-\_\*\,\/]\W)\S+$'
+          $EXCLUSION_LIST=""
+          if [[ ${{ inputs.exclude_list }} =~ $regex ]]; then
+            $EXCLUSION_LIST="-- file-path ${{ inputs.exclude_list }}"
+          else
+            echo "::error::Exclusion list does not match allowed format"
+            exit 1
+          fi
+          echo "exclusions=$EXCLUSION_LIST" >> $GITHUB_ENV
+
       - name: Checkout Repository
         if: env.enable_analysis  == 'true'
         uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
@@ -67,4 +79,4 @@ jobs:
           cx_client_id: ${{ secrets.cx_client_id }}
           cx_client_secret: ${{ secrets.cx_client_secret }}
           source_dir: "./${{ inputs.module_directory }}"
-          additional_params: --scan-types "sast,sca,api-security" ${{ env.scan_mode }} ${{ inputs.exclude_list }}
+          additional_params: --scan-types "sast,sca,api-security" ${{ env.scan_mode }} ${{ env.exclusions }}
