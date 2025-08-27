@@ -9,6 +9,7 @@ on:
         required: true
         type: string
       exclude_list:
+        default: "empty"
         required: false
         type: string
 
@@ -24,23 +25,23 @@ on:
 
 jobs:
   code-analysis:
-    name: Run Checkmarx scan
+    name: Run Checkmarx
     runs-on: ${{ github.repository_visibility != 'public' && 'centreon-security' || 'ubuntu-24.04' }}
 
     steps:
-      - name: routing
+      - name: Check parameters
         run: |
           # Quality gate settings
           ENABLE_QG="true"
           if [[ "${{ vars.CHECKMARX_QUALITY_GATE }}" != "yes" ]]; then
             # disabling all QG in case of incident with the service
             ENABLE_QG="false"
-            echo "Skipping analysis. Caused by QG override"
+            echo "::warning::Skipping analysis. Caused by QG override"
           elif [[ "${{ github.event_name }}" == "pull_request" && "${{ github.event.pull_request.user.id }}" == "49699333" ]]; then
             # disabling the QG in case of pull request opened by dependabot bot
             # As dependabot will not be able to access GH secrets
             ENABLE_QG="false"
-            echo "Skipping analysis. Caused by dependabot PR"
+            echo "::warning::Skipping analysis. Caused by dependabot PR"
           fi
 
           # Check forced full scan
@@ -49,6 +50,23 @@ jobs:
             SCAN_MODE="--sast-incremental=false"
           fi
 
+          # Check exclusions consistency
+          regex='^([a-zA-Z\*\/\!]{1}[a-zA-Z0-9\-\_\*\,\/]{1,})\S+$'
+          if [[ "${{ inputs.exclude_list }}" == "empty" ]]; then
+            # input value is missing from calling pipeline 
+            EXCLUSION_LIST=""
+          elif [[ -z "${{ inputs.exclude_list }}" ]]; then
+            # provided input value is empty
+            EXCLUSION_LIST=""
+          elif [[ "${{ inputs.exclude_list }}" =~ $regex ]]; then
+            # provided input value must fit the regex
+            EXCLUSION_LIST="--file-filter ${{ inputs.exclude_list }}"
+          else
+            echo "::error::Exclusion list does not match allowed format"
+            exit 1
+          fi
+
+          echo "exclusions=$EXCLUSION_LIST" >> $GITHUB_ENV
           echo "scan_mode=$SCAN_MODE" >> $GITHUB_ENV
           echo "enable_analysis=$ENABLE_QG" >> $GITHUB_ENV
           cat $GITHUB_ENV
@@ -67,4 +85,4 @@ jobs:
           cx_client_id: ${{ secrets.cx_client_id }}
           cx_client_secret: ${{ secrets.cx_client_secret }}
           source_dir: "./${{ inputs.module_directory }}"
-          additional_params: --scan-types "sast,sca,api-security" ${{ env.scan_mode }} ${{ inputs.exclude_list }}
+          additional_params: --scan-types "sast,sca,api-security" ${{ env.scan_mode }} ${{ env.exclusions }}
