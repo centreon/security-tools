@@ -8,6 +8,9 @@ on:
       module_directory:
         required: true
         type: string
+      exclude_list:
+        required: fast
+        type: string
 
     secrets:
       base_uri:
@@ -20,23 +23,9 @@ on:
         required: true
 
 jobs:
-  choose-runner:
-    runs-on: ubuntu-22.04
-    outputs:
-      runner: ${{ steps.runner.outputs.runner }}
-
-    steps:
-      - id: runner
-        run: |
-          $RUNNER="centreon-security"
-          if [ "${{ github.repository_visibility }}" == "public" ]; then
-            $RUNNER="ubuntu-22.04"
-          fi
-          echo "runner=$RUNNER" >> $GITHUB_OUTPUT
-
   code-analysis:
     name: Run Checkmarx scan
-    runs-on: ${{ needs.choose-runner.outputs.runner }}
+    runs-on: ${{ github.repository_visibility != 'public' && 'centreon-security' || 'ubuntu-24.04' }}
 
     steps:
       - name: routing
@@ -78,4 +67,4 @@ jobs:
           cx_client_id: ${{ secrets.cx_client_id }}
           cx_client_secret: ${{ secrets.cx_client_secret }}
           source_dir: "./${{ inputs.module_directory }}"
-          additional_params: --scan-types "sast,sca,api-security" ${{ env.scan_mode }}
+          additional_params: --scan-types "sast,sca,api-security" ${{ env.scan_mode }} ${{ inputs.exclude_list }}
