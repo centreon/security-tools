@@ -59,7 +59,7 @@ jobs:
 
       - name: Run code analysis
         if: env.enable_analysis  == 'true'
-        uses: checkmarx/ast-github-action@88c60148b7b9689d67eb05bf66a65bbb871f2f2c # v.2.3.20
+        uses: checkmarx/ast-github-action@427623bbb54f318e690463e11302a1eb1b9b2b5a # v.2.3.25
         with:
           project_name: ${{ inputs.module_name }}
           base_uri: ${{ secrets.base_uri }}
