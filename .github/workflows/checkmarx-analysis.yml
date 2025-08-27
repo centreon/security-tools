@@ -56,8 +56,9 @@ jobs:
       - name: Check exclusions consistency
         run: |
           regex='^([a-zA-Z0-9\*]+[a-zA-Z0-9\-\_\*\,\/]\W)\S+$'
-          $EXCLUSION_LIST=""
-          if [[ ${{ inputs.exclude_list }} =~ $regex ]]; then
+          if [[ -z ${{ inputs.exclude_list }} ]]; then
+            $EXCLUSION_LIST=""
+          elif [[ ${{ inputs.exclude_list }} =~ $regex ]]; then
             $EXCLUSION_LIST="-- file-path ${{ inputs.exclude_list }}"
           else
             echo "::error::Exclusion list does not match allowed format"
