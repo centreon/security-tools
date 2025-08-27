@@ -4,23 +4,30 @@ on:
   workflow_call:
 
 jobs:
-  choose-runner:
+  secret-scan-on-public-runner:
+    name: Run Gitleaks using public runner
+    if: github.repository_visibility == 'public'
     runs-on: ubuntu-22.04
-    outputs:
-      runner: ${{ steps.runner.outputs.runner }}
 
     steps:
-      - id: runner
-        run: |
-          $RUNNER="centreon-security"
-          if [ "${{ github.repository_visibility }}" == "public" ]; then
-            $RUNNER="ubuntu-22.04"
-          fi
-          echo "runner=$RUNNER" >> $GITHUB_OUTPUT
+      - name: Checkout Repository
+        uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
+        with:
+          fetch-depth: 0
 
-  secret-scan:
-    name: Run Gitleaks using public runner
-    runs-on: ${{ needs.choose-runner.outputs.runner }}
+      - name: Run secret scan
+        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2.3.9
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_LICENSE: "Centreon"
+          GITLEAKS_ENABLE_COMMENTS: false
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: false
+          GITLEAKS_ENABLE_SUMMARY: false
+
+  secret-scan-on-private-runner:
+    name: Run Gitleaks using private runner
+    if: github.repository_visibility != 'public'
+    runs-on: centreon-security
 
     steps:
       - name: Checkout Repository
