@@ -59,7 +59,7 @@ jobs:
             # provided input value is empty
             EXCLUSION_LIST=""
           elif [[ "${{ inputs.exclude_list }}" =~ $regex ]]; then
-            # provided input value must fit the regex
+            # provided input value fit the pattern
             EXCLUSION_LIST="--file-filter ${{ inputs.exclude_list }}"
           else
             echo "::error::Exclusion list does not match allowed format"
@@ -73,11 +73,11 @@ jobs:
 
       - name: Checkout Repository
         if: env.enable_analysis  == 'true'
-        uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
       - name: Run code analysis
         if: env.enable_analysis  == 'true'
-        uses: checkmarx/ast-github-action@88c60148b7b9689d67eb05bf66a65bbb871f2f2c # v.2.3.20
+        uses: checkmarx/ast-github-action@ef313c2c19e03e90ae35e795724fb1d20830dc33 # v2.3.26
         with:
           project_name: ${{ inputs.module_name }}
           base_uri: ${{ secrets.base_uri }}
