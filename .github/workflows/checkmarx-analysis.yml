@@ -59,7 +59,7 @@ jobs:
             # provided input value is empty
             EXCLUSION_LIST=""
           elif [[ "${{ inputs.exclude_list }}" =~ $regex ]]; then
-            # provided input value must fit the regex
+            # provided input value fit the pattern
             EXCLUSION_LIST="--file-filter ${{ inputs.exclude_list }}"
           else
             echo "::error::Exclusion list does not match allowed format"
