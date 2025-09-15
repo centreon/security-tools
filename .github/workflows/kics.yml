@@ -1,0 +1,33 @@
+name: KICS Security Scan
+
+on:
+  pull_request:
+    branches:
+      - main
+      - develop
+
+jobs:
+  kics-scan:
+    runs-on: centreon-security
+
+    permissions:
+      security-events: write
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+
+      - name: Run KICS Scan
+        uses: checkmarx/kics-github-action@71454548efb714daa457caae25c01d64cc0be9d2
+        with:
+          path: '.'
+          cloud_provider: 'aws'
+          token: ${{ secrets.GITHUB_TOKEN }}
+          disable_secrets: true
+          type: 'Ansible,CloudFormation,Dockerfile,Kubernetes,Terraform,Helm,CICD'
+          output_path: results/
+          verbose: false
+          enable_comments: true
+          enable_jobs_summary: true
+          fail_on: 'high,medium'
