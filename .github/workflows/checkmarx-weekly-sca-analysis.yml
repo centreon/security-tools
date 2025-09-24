@@ -1,0 +1,88 @@
+name: Checkmarx SCA full scan
+on:
+  workflow_call:
+    inputs:
+      module_name:
+        required: true
+        type: string
+      module_directory:
+        required: true
+        type: string
+      exclude_list:
+        default: "empty"
+        required: false
+        type: string
+
+    secrets:
+      base_uri:
+        required: true
+      cx_tenant:
+        required: true
+      cx_client_id:
+        required: true
+      cx_client_secret:
+        required: true
+
+jobs:
+  code-analysis:
+    name: Run Checkmarx
+    runs-on: ${{ github.repository_visibility != 'public' && 'centreon-security' || 'ubuntu-24.04' }}
+
+    steps:
+      - name: Check parameters
+        run: |
+          # Quality gate settings
+          ENABLE_QG="true"
+          if [[ "${{ vars.CHECKMARX_QUALITY_GATE }}" != "yes" ]]; then
+            # disabling all QG in case of incident with the service
+            ENABLE_QG="false"
+            echo "::warning::Skipping analysis. Caused by QG override"
+          elif [[ "${{ github.event_name }}" == "pull_request" && "${{ github.event.pull_request.user.id }}" == "49699333" ]]; then
+            # disabling the QG in case of pull request opened by dependabot bot
+            # As dependabot will not be able to access GH secrets
+            ENABLE_QG="false"
+            echo "::warning::Skipping analysis. Caused by dependabot PR"
+          fi
+
+          # Check forced full scan
+          SCAN_MODE="--sast-incremental"
+          if [[ "${{ github.event_name }}" == "schedule" || "${{ vars.CHECKMARX_FORCE_FULL_SCAN }}" == "yes" ]]; then
+            SCAN_MODE="--sast-incremental=false"
+          fi
+
+          # Check exclusions consistency
+          regex='^([a-zA-Z\*\/\!]{1}[a-zA-Z0-9\-\_\*\,\/]{1,})\S+$'
+          if [[ "${{ inputs.exclude_list }}" == "empty" ]]; then
+            # input value is missing from calling pipeline 
+            EXCLUSION_LIST=""
+          elif [[ -z "${{ inputs.exclude_list }}" ]]; then
+            # provided input value is empty
+            EXCLUSION_LIST=""
+          elif [[ "${{ inputs.exclude_list }}" =~ $regex ]]; then
+            # provided input value fit the pattern
+            EXCLUSION_LIST="--file-filter ${{ inputs.exclude_list }}"
+          else
+            echo "::error::Exclusion list does not match allowed format"
+            exit 1
+          fi
+
+          echo "exclusions=$EXCLUSION_LIST" >> $GITHUB_ENV
+          echo "scan_mode=$SCAN_MODE" >> $GITHUB_ENV
+          echo "enable_analysis=$ENABLE_QG" >> $GITHUB_ENV
+          cat $GITHUB_ENV
+
+      - name: Checkout Repository
+        if: env.enable_analysis  == 'true'
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+      - name: Run code analysis
+        if: env.enable_analysis  == 'true'
+        uses: checkmarx/ast-github-action@ef313c2c19e03e90ae35e795724fb1d20830dc33 # v2.3.26
+        with:
+          project_name: ${{ inputs.module_name }}
+          base_uri: ${{ secrets.base_uri }}
+          cx_tenant: ${{ secrets.cx_tenant }}
+          cx_client_id: ${{ secrets.cx_client_id }}
+          cx_client_secret: ${{ secrets.cx_client_secret }}
+          source_dir: "./${{ inputs.module_directory }}"
+          additional_params: --scan-types "sca" ${{ env.scan_mode }} ${{ env.exclusions }}
