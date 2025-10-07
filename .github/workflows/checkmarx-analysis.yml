@@ -12,6 +12,10 @@ on:
         default: "empty"
         required: false
         type: string
+      project_tag:
+        default: "empty"
+        required: false
+        type: string
 
     secrets:
       base_uri:
@@ -66,9 +70,20 @@ jobs:
             exit 1
           fi
 
+          # Check tag consistency
+          regex_tag='^(dev-[0-9]{2}.[0-9]{2}.x)$'
+          PROJECT_TAG=""
+          if [[ "${{ inputs.exclude_list }}" == "empty" ]] || [[ -z "${{ inputs.exclude_list }}" ]]; then
+            # input value is missing from calling pipeline 
+            PROJECT_TAG=""
+          elif [[ "${{ inputs.project_tag }}" == "develop" ]] || [[ "${{ inputs.project_tag }}" == "cloud" ]] || [[ "${{ inputs.project_tag }}" =~ $regex_tag ]]; then
+            PROJECT_TAG="--projet-tag ${{ inputs.project_tag }}"
+          fi
+
           echo "exclusions=$EXCLUSION_LIST" >> $GITHUB_ENV
           echo "scan_mode=$SCAN_MODE" >> $GITHUB_ENV
           echo "enable_analysis=$ENABLE_QG" >> $GITHUB_ENV
+          echo "project_tag=PROJECT_TAG" >> $GITHUB_ENV
           cat $GITHUB_ENV
 
       - name: Checkout Repository
@@ -77,7 +92,7 @@ jobs:
 
       - name: Run code analysis
         if: env.enable_analysis  == 'true'
-        uses: checkmarx/ast-github-action@ef313c2c19e03e90ae35e795724fb1d20830dc33 # v2.3.26
+        uses: checkmarx/ast-github-action@2c828f1e313608ddb4ae8fe5524cfd7b9344dd79 # v2.3.27
         with:
           project_name: ${{ inputs.module_name }}
           base_uri: ${{ secrets.base_uri }}
@@ -85,4 +100,4 @@ jobs:
           cx_client_id: ${{ secrets.cx_client_id }}
           cx_client_secret: ${{ secrets.cx_client_secret }}
           source_dir: "./${{ inputs.module_directory }}"
-          additional_params: --scan-types "sast,sca,api-security" ${{ env.scan_mode }} ${{ env.exclusions }}
+          additional_params: --scan-types "sast,sca,api-security" ${{env.project_tag}} ${{ env.scan_mode }} ${{ env.exclusions }}
