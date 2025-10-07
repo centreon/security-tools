@@ -83,7 +83,7 @@ jobs:
           echo "exclusions=$EXCLUSION_LIST" >> $GITHUB_ENV
           echo "scan_mode=$SCAN_MODE" >> $GITHUB_ENV
           echo "enable_analysis=$ENABLE_QG" >> $GITHUB_ENV
-          echo "project_tag=PROJECT_TAG" >> $GITHUB_ENV
+          echo "project_tag=$PROJECT_TAG" >> $GITHUB_ENV
           cat $GITHUB_ENV
 
       - name: Checkout Repository
