@@ -77,7 +77,7 @@ jobs:
             # input value is missing from calling pipeline 
             PROJECT_TAG=""
           elif [[ "${{ inputs.project_tag }}" == "develop" ]] || [[ "${{ inputs.project_tag }}" == "cloud" ]] || [[ "${{ inputs.project_tag }}" =~ $regex_tag ]]; then
-            PROJECT_TAG="--projet-tags '${{ inputs.project_tag }}'"
+            PROJECT_TAG="--project-tags '${{ inputs.project_tag }}'"
           fi
 
           echo "exclusions=$EXCLUSION_LIST" >> $GITHUB_ENV
