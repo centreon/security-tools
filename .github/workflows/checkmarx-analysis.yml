@@ -73,7 +73,10 @@ jobs:
           # Check tag consistency
           regex_tag='^(dev-[0-9]{2}.[0-9]{2}.x)$'
           PROJECT_TAG=""
-          if [[ "${{ inputs.exclude_list }}" == "empty" ]] || [[ -z "${{ inputs.exclude_list }}" ]]; then
+          if [[ "${{ inputs.project_tag }}" == "empty" ]] || [[ -z "${{ inputs.project_tag }}" ]]; then
+            # input value is missing from calling pipeline 
+            PROJECT_TAG=""
+          elif [[ "${{ inputs.project_tag }}" == "develop" ]] || [[ "${{ inputs.project_tag }}" == "cloud" ]] || [[ "${{ inputs.project_tag }}" =~ $regex_tag ]]; then
             # input value is missing from calling pipeline 
             PROJECT_TAG=""
           elif [[ "${{ inputs.project_tag }}" == "develop" ]] || [[ "${{ inputs.project_tag }}" == "cloud" ]] || [[ "${{ inputs.project_tag }}" =~ $regex_tag ]]; then
