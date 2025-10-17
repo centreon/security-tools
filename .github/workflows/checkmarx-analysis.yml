@@ -100,4 +100,4 @@ jobs:
           cx_client_id: ${{ secrets.cx_client_id }}
           cx_client_secret: ${{ secrets.cx_client_secret }}
           source_dir: "./${{ inputs.module_directory }}"
-          additional_params: --scan-types "sast,sca,api-security" ${{env.project_tag}} ${{ env.scan_mode }} ${{ env.exclusions }}
+          additional_params: --scan-types "sast,sca,api-security" ${{env.project_tag}} ${{ env.scan_mode }} ${{ env.exclusions }} --debug
