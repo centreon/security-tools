@@ -277,6 +277,7 @@ async function run() {
                     // Safe: Not installed
                 } else {
                     const installedClean = cleanVersion(installedVersion);
+                    console.log(`     ${DEBUG}[Scanning]${RESET} ${target.name}`);
 
                     // CHECK: Does installed version match ANY of the compromised versions?
                     if (target.compromisedVersions.includes(installedClean)) {
