@@ -154,7 +154,7 @@ function scanForSensitiveFiles(dir, isInsideNodeModules = false) {
                         results = results.concat(scanForSensitiveFiles(fullPath, isInsideNodeModules));
                     }
                 } else if (stat.isFile()) {
-                    if (isInsideNodeModules && SENSITIVE_FILES.includes(file)) {
+                    if (SENSITIVE_FILES.includes(file)) {
                         results.push(fullPath);
                     }
                 }
