@@ -114,7 +114,7 @@ function findProjectRoots(startDir) {
     let results = [];
     try {
         const list = fs.readdirSync(startDir);
-        if (list.includes('pnpm-lock.yaml')) results.push(startDir);
+        if (list.includes('pnpm-lock.yaml') || list.includes('yarn.lock') || list.includes('package-lock.json')) results.push(startDir);
 
         list.forEach(file => {
             const fullPath = path.join(startDir, file);
