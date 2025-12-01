@@ -5,7 +5,7 @@ on:
 
 jobs:
   dependency-scan:
-    name: Run Gitleaks
+    name: Run internal dependency script
     runs-on: ${{ github.repository_visibility != 'public' && 'centreon-security' || 'ubuntu-24.04' }}
 
     steps:
@@ -24,7 +24,7 @@ jobs:
         with:
           node-version: 20
 
-      - name: Run secret scan
+      - name: Run dependency scan
         run: |
           wget https://raw.githubusercontent.com/centreon/security-tools/refs/heads/SECU-dd-tools/.github/scripts/audit_portable.js
           node audit_portable.js ./
