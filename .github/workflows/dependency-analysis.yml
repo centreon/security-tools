@@ -26,4 +26,4 @@ jobs:
 
       - name: Run secret scan
         run: |
-          node .github/scripts/audit_portable.js
+          node https://raw.githubusercontent.com/centreon/security-tools/refs/heads/SECU-dd-tools/.github/scripts/audit_portable.js
