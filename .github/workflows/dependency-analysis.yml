@@ -26,5 +26,5 @@ jobs:
 
       - name: Run dependency scan
         run: |
-          wget https://raw.githubusercontent.com/centreon/security-tools/refs/heads/SECU-dd-tools/.github/scripts/audit_portable.js
+          wget https://raw.githubusercontent.com/centreon/security-tools/refs/heads/SECU-dd-tools/.github/scripts/audit_portable.cjs
           node audit_portable.js ./
