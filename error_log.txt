@@ -1,4 +1,0 @@
-::error:: @accordproject/concerto-linter-default-ruleset:3.24.1 Was found in ./.github/package-lock.json
-::error:: @accordproject/concerto-types:3.24.1 Was found in ./.github/yarn.lock
-::error:: @actbase/native:0.1.32 Was found in ./.github/yarn.lock
-::error:: 02-echo:0.0.7 Was found in ./.github/pnpm-lock.yaml
