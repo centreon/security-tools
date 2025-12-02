@@ -126,7 +126,7 @@ jobs:
           for LOCKFILE in "${LOCKFILES[@]}"; do
             checkManifest "$LOCKFILE"
           done
-          if [ -n "$ERROR_LOG" ]; then
+          if [ -s "$ERROR_LOG" ]; then
             echo "FATAL Breaking the run as following dependencies were found:"
             cat "$ERROR_LOG"
             ls -la
