@@ -95,7 +95,7 @@ jobs:
 
           function checkManifest() {
             COUNT=0
-            echo "::info:: Testing manifest = $LOCKFILE"
+            echo "::info:: Testing manifest $LOCKFILE"
             manifest_type=$(basename "$LOCKFILE")
 
             while IFS=':' read -r NAME VERSION; do
@@ -127,7 +127,7 @@ jobs:
             checkManifest "$LOCKFILE"
           done
           if [ -s "$ERROR_LOG" ]; then
-            echo "FATAL Breaking the run as following dependencies were found:"
+            echo -e "\nFATAL Breaking the run as following dependencies were found:"
             cat "$ERROR_LOG"
             exit 1
           else
