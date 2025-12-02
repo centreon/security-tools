@@ -25,7 +25,7 @@ jobs:
 
           function setupErrorLogFile() {
             if [ -n "$ERROR_LOG" ]; then rm -f "$ERROR_LOG"; fi
-            if [ ! -w "$ERROR_LOG" ]; then touch "$ERROR_LOG"; fi
+            touch "$ERROR_LOG"
           }
 
           function checkPnpmLockfile() {
