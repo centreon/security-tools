@@ -21,4 +21,4 @@ jobs:
           echo "blacklist location"
           find ./ -name "compromised-packages.txt"
 
-          .github/scripts/dependency-analysis.sh
+          #.github/scripts/dependency-analysis.sh

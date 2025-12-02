@@ -4,7 +4,7 @@
 ## {Format messages}
 #----
 function success_output() {
-  echo -e "\n\e[32m\e[1m$1\e[0m\t$2"
+ echo -e "\n\e[32m\e[1m$1\e[0m\t$2"
 }
 function error_output() {
   echo -e "\n\e[31m\e[1m$1\e[0m\t$2"
