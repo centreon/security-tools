@@ -129,8 +129,9 @@ jobs:
           if [ -s "$ERROR_LOG" ]; then
             echo "FATAL Breaking the run as following dependencies were found:"
             cat "$ERROR_LOG"
-            ls -la
             exit 1
+          else
+            echo "OK nothing found"
           fi
 
         shell: bash
