@@ -24,4 +24,3 @@ jobs:
           pwd
 
           #.github/scripts/dependency-analysis.sh
-        shell: bash
