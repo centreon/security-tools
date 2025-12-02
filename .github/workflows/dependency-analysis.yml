@@ -20,7 +20,6 @@ jobs:
           ERROR_LOG="error_log.txt"
           DEP_LIST="compromised-packages.txt"
           LOCKFILES=($(find ./ -name "package-lock.json" -o -name "pnpm-lock.yaml" -o -name "yarn.lock"))
-          COUNT=0
 
           function checkPnpmLockfile() {
             # Find dependency formated as
@@ -95,6 +94,7 @@ jobs:
           }
 
           function checkManifest() {
+            COUNT=0
             echo "::info:: Testing manifest = $LOCKFILE"
             manifest_type=$(basename "$LOCKFILE")
 
