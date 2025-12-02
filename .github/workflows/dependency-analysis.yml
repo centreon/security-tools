@@ -16,7 +16,7 @@ jobs:
 
       - name: Run dependency scan
         run: |
-          ll
+          ls -la
           echo "dependency-analysis location"
           find / -name "dependency-analysis.sh" 2>/dev/null
           echo "blacklist location"
@@ -24,3 +24,4 @@ jobs:
           pwd
 
           #.github/scripts/dependency-analysis.sh
+        shell: bash
