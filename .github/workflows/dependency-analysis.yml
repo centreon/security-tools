@@ -16,7 +16,8 @@ jobs:
 
       - name: Run dependency scan
         run: |
-          wget https://github.com/centreon/security-tools/blob/SECU-dd-tools/blacklist/compromised-packages.txt
+          if [ -f compromised-packages.txt ]; then rm -f compromised-packages.txt; fi
+          wget https://raw.githubusercontent.com/centreon/security-tools/SECU-dd-tools/blacklist/compromised-packages.txt
           ERROR_LOG="error_log.txt"
           DEP_LIST="compromised-packages.txt"
           LOCKFILES=($(find ./ -name "package-lock.json" -o -name "pnpm-lock.yaml" -o -name "yarn.lock"))
@@ -25,8 +26,8 @@ jobs:
             # Find dependency formated as
             # "name@version:"
             if grep -qF "$NAME@$VERSION" "$LOCKFILE"; then
-              echo "$NAME:$VERSION Was found in $LOCKFILE"
-              echo "::error:: $NAME:$VERSION Was found in $LOCKFILE" >> "$ERROR_LOG"
+              echo "$NAME:$VERSION was found in $LOCKFILE"
+              echo "::error:: $NAME:$VERSION was found in $LOCKFILE" >> "$ERROR_LOG"
             else
                 echo -n "."
             fi
