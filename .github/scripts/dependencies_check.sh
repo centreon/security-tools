@@ -12,12 +12,6 @@ function error_output() {
 function query_output() {
   echo -e "\n\e[34m\e[1m$1\e[0m\t$2"
 }
-function query_info() {
-  echo -e "\n\e[35m\e[1m$1\e[0m\t$2"
-}
-function query_result() {
-  echo -e "\n\t$1\e[32m\e[1m\t$2\e[0m\n"
-}
 function divider_space() {
 # Empty line ;)
   echo -e ""
