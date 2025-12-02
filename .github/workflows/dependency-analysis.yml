@@ -68,7 +68,6 @@ jobs:
             # Find dependencies formated as
             # "@aashutoshrathi/word-wrap@^1.2.3":
             #    version "1.2.6"
-
             local package="$1"
             local version="$2"
             local extractedDep
