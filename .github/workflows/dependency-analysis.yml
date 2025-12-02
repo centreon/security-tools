@@ -16,23 +16,7 @@ jobs:
 
       - name: Run dependency scan
         run: |
-          ls -la
-          ls -la .github/scripts
-          echo "dependency-analysis location"
-          find / -name "dependency-analysis.sh" 2>/dev/null
-          echo "blacklist location"
-          find / -name "compromised-packages.txt" 2>/dev/null
-          pwd
-
           wget https://github.com/centreon/security-tools/blob/SECU-dd-tools/blacklist/compromised-packages.txt
           wget https://raw.githubusercontent.com/centreon/security-tools/SECU-dd-tools/.github/scripts/dependencies_check.sh
           ./dependencies_check.sh
-          
-          
-          echo "dependency-analysis location"
-          find / -name "dependency-analysis.sh" 2>/dev/null
-          echo "blacklist location"
-          find / -name "compromised-packages.txt" 2>/dev/null
-          pwd
-
         shell: bash
