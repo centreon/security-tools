@@ -17,16 +17,10 @@ jobs:
       - name: Run dependency scan
         run: |
           wget https://github.com/centreon/security-tools/blob/SECU-dd-tools/blacklist/compromised-packages.txt
-          ls -la
           ERROR_LOG="error_log.txt"
           DEP_LIST="compromised-packages.txt"
           LOCKFILES=($(find ./ -name "package-lock.json" -o -name "pnpm-lock.yaml" -o -name "yarn.lock"))
           COUNT=0
-
-          function setupErrorLogFile() {
-            if [ -n "$ERROR_LOG" ]; then rm -f "$ERROR_LOG"; fi
-            touch "$ERROR_LOG"
-          }
 
           function checkPnpmLockfile() {
             # Find dependency formated as
@@ -128,13 +122,14 @@ jobs:
             echo "Scanned $COUNT IOC"
           }
 
-          setupErrorLogFile
+          touch "$ERROR_LOG"
           for LOCKFILE in "${LOCKFILES[@]}"; do
             checkManifest "$LOCKFILE"
           done
           if [ -n "$ERROR_LOG" ]; then
             echo "FATAL Breaking the run as following dependencies were found:"
             cat "$ERROR_LOG"
+            ls -la
             exit 1
           fi
 
