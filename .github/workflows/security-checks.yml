@@ -18,6 +18,9 @@ on:
     - cron: 0 1 * * 1-5
 
 jobs:
+  dependency-scan:
+    uses: centreon/security-tools/.github/workflows/dependency-analysis.yml@develop
+
   secrets_scan:
     uses: centreon/security-tools/.github/workflows/gitleaks-analysis.yml@develop
 
