@@ -17,8 +17,8 @@ jobs:
       - name: Run dependency scan
         run: |
           echo "dependency-analysis location"
-          find ./ -name "dependency-analysis.sh"
+          find / -name "dependency-analysis.sh" 2>/dev/null
           echo "blacklist location"
-          find ./ -name "compromised-packages.txt"
+          find / -name "compromised-packages.txt" 2>/dev/null
 
           #.github/scripts/dependency-analysis.sh
