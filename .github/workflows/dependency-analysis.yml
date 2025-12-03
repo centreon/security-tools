@@ -40,6 +40,8 @@ jobs:
             local package="$1"
             local version="$2"
             local extractedDep
+          
+            sed 's/,//g' $LOCKFILE
 
             extractedDep=$(awk -v name="$package" -v version="$version" '
               /"dependencies": *{/ { in_deps=1; next }
