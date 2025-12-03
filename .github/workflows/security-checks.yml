@@ -19,10 +19,10 @@ jobs:
   dependency-scan:
     uses: centreon/security-tools/.github/workflows/dependency-analysis.yml@main
 
-  secrets_scan:
+  secrets-scan:
     uses: centreon/security-tools/.github/workflows/gitleaks-analysis.yml@main
 
-  code_scan:
+  code-scan:
     uses: centreon/security-tools/.github/workflows/checkmarx-analysis.yml@main
     with:
       module_directory:
