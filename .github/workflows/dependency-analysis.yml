@@ -31,7 +31,8 @@ jobs:
 
       - name: Install dependencies
         run: |
-          LOCKFILES=($(find ./ -name "package-lock.json" -o -name "pnpm-lock.yaml" -o -name "yarn.lock"))
+          ls -la
+          LOCKFILES=($(find . -type f -name "package-lock.json" -o -name "pnpm-lock.yaml" -o -name "yarn.lock"))
           echo "LOCKFILES"
           if [[ -z "$LOCKFILES" ]]; then
             for LOCKFILE in "${LOCKFILES[@]}"; do
