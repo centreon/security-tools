@@ -33,10 +33,11 @@ jobs:
         run: |
           LOCKFILES=($(find ./ -name "package-lock.json" -o -name "pnpm-lock.yaml" -o -name "yarn.lock"))
           if [[ -z "$LOCKFILES" ]]; then
-          for LOCKFILE in "${LOCKFILES[@]}"; do
-            cd $(dirname "$LOCKFILE")
-            npm ci --verbose
-            cd -
+            for LOCKFILE in "${LOCKFILES[@]}"; do
+              cd $(dirname "$LOCKFILE")
+              npm ci --verbose
+              cd -
+            done
           fi
 
 #      - name: New dependency review
