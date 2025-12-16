@@ -17,11 +17,19 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Find lockfiles
+        run: |
+          LOCKFILES=$(find . -type f -name "package-lock.json" -o -name "pnpm-lock.yaml" -o -name "yarn.lock" -print | paste -sd, -)
+          echo "lockfiles=$LOCKFILES >> GITHUB_ENV"
+          cat $GITHUB_ENV
+        shell: bash
+
       - name: Setup Node.js
+        if: ${{ env.lockfiles != '' }}
         uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
         with:
           node-version: "22"
-          #cache: "npm, pnpm, yarn"
+          cache: "npm, pnpm, yarn"
 
       - name: Install safe-chain
         run: |
@@ -29,6 +37,7 @@ jobs:
           curl -fsSL https://raw.githubusercontent.com/AikidoSec/safe-chain/main/install-scripts/install-safe-chain.sh | sh -s -- --ci --include-python
           echo "Get safe-chain version"
           safe-chain --version
+        shell: bash
 
       - name: Install dependencies
         run: npm ci
