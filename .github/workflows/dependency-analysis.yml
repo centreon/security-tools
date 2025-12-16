@@ -3,6 +3,9 @@ name: dependency-checks
 on:
   workflow_call:
 
+permissions:
+  contents: read
+
 jobs:
   dependency-scan:
     name: Run internal dependency script
@@ -13,125 +16,22 @@ jobs:
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
           fetch-depth: 0
+      - name: Setup Node.js
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with:
+          node-version: "22"
+          cache: "npm"
 
-      - name: Run dependency scan
+      - name: Install safe-chain
         run: |
-          if [ -f compromised-packages.txt ]; then rm -f compromised-packages.txt; fi
-          wget https://raw.githubusercontent.com/centreon/security-tools/main/blacklist/compromised-packages.txt
-          ERROR_LOG="error_log.txt"
-          DEP_LIST="compromised-packages.txt"
-          LOCKFILES=($(find ./ -name "package-lock.json" -o -name "pnpm-lock.yaml" -o -name "yarn.lock"))
+          curl -fsSL https://raw.githubusercontent.com/AikidoSec/safe-chain/main/install-scripts/install-safe-chain.sh | sh -s -- --ci --include-python
+          safe-chain --version
 
-          function checkPnpmLockfile() {
-            # Find dependency formated as
-            # "name@version:"
-            if grep -qF "$NAME@$VERSION" "$LOCKFILE"; then
-              echo "$NAME:$VERSION was found in $LOCKFILE"
-              echo "::error:: $NAME:$VERSION was found in $LOCKFILE" >> "$ERROR_LOG"
-            else
-                echo -n "."
-            fi
-          }
+      - name: Install dependencies
+        run: npm ci
 
-          function checkNpmLockfile() {
-            # Find dependencies formated as
-            # "@accordproject/concerto-linter-default-ruleset": {
-            #      "version": "3.24.1",
-            local package="$1"
-            local version="$2"
-            local extractedDep
-
-            extractedDep=$(awk -v name="$package" -v version="$version" '
-              /"dependencies": *{/ { in_deps=1; next }
-              in_deps && /"[^"]+": *{/ {
-                match($0, /"([^"]+)": *{/, arr)
-                dep = arr[1]
-                getline
-                if ($0 ~ /"version":/) {
-                  match($0, /"version": *"([^"]+)"/, ver)
-                  if (dep == name && ver[1] == version) {
-                    print dep " " ver[1]
-                  }
-                }
-              }
-              ' "$LOCKFILE"
-            )
-            if [[ "$extractedDep" == "$package $version" ]]; then
-              echo "$package:$version" "Was found in $LOCKFILE"
-              echo "::error:: $package:$version Was found in $LOCKFILE" >> "$ERROR_LOG"
-            else
-                echo -n "."
-            fi
-          }
-
-          function checkYarnLockfile() {
-            # Find dependencies formated as
-            # "@aashutoshrathi/word-wrap@^1.2.3":
-            #    version "1.2.6"
-            local package="$1"
-            local version="$2"
-            local extractedDep
-          
-            extractedDep=$(awk -v pkg="$package" '
-                /^".*":$/ {
-                  split($0, arr, ",")
-                  dep=arr[1]
-                  gsub(/"/, "", dep)
-                  sub(/@[^@]*$/, "", dep)
-                  current_pkg=dep
-                }
-                /version "/ {
-                  match($0, /"([^"]+)"/, v)
-                  if(current_pkg==pkg) print current_pkg, v[1]
-                }
-              ' "$LOCKFILE")
-            if [[ "$extractedDep" == "$package $version" ]]; then
-              echo "$package:$version Was found in $LOCKFILE"
-              echo "::error:: $package:$version Was found in $LOCKFILE" >> "$ERROR_LOG"
-            else
-                echo -n "."
-            fi
-          }
-
-          function checkManifest() {
-            COUNT=0
-            echo "::info:: Testing manifest $LOCKFILE"
-            manifest_type=$(basename "$LOCKFILE")
-
-            while IFS=':' read -r NAME VERSION; do
-              # ignore empty and commented lines
-              [[ -z "${NAME// }" ]] && continue
-              [[ "$NAME" =~ ^# ]] && continue
-              #echo "DEBUG To check $NAME $VERSION"
-              case "$manifest_type" in
-                "pnpm-lock.yaml")
-                  checkPnpmLockfile
-                  ;;
-                "yarn.lock")
-                  checkYarnLockfile "$NAME" "$VERSION"
-                  ;;
-                "package-lock.json")
-                  checkNpmLockfile "$NAME" "$VERSION"
-                  ;;
-                "*")
-                  echo "KO manifest not managed"
-                  exit 1
-              esac
-              COUNT=$((COUNT+1))
-            done < "$DEP_LIST"
-            echo "Scanned $COUNT IOC"
-          }
-
-          touch "$ERROR_LOG"
-          for LOCKFILE in "${LOCKFILES[@]}"; do
-            checkManifest "$LOCKFILE"
-          done
-          if [ -s "$ERROR_LOG" ]; then
-            echo -e "\nFATAL Breaking the run as following dependencies were found:"
-            cat "$ERROR_LOG"
-            exit 1
-          else
-            echo "OK nothing found"
-          fi
-
-        shell: bash
+      - name: Dependency Review
+        uses: actions/dependency-review-action@3c4e3dcb1aa7874d2c16be7d79418e9b7efd6261 # v4.8.2
+        with:
+          fail-on-severity: medium
+          deny-licenses: LGPL-2.0, BSD-2-Clause
