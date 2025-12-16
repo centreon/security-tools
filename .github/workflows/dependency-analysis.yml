@@ -20,6 +20,15 @@ jobs:
           node-version: "22"
           package-manager-cache: false
 
+      # https://github.com/search?q=https%3A%2F%2Fraw.githubusercontent.com%2FAikidoSec%2Fsafe-chain&type=code
+      ## Check package types
+      ## install dependency managers
+      ## launch one installation per tool
+      ## pnpm install --frozen-lockfile
+      ## npm ci
+      ## yarn install --frozen-lockfile
+      # check history to get the script
+
       - name: Install safe-chain
         run: |
           echo "Installing Aikido safe-chain"
@@ -28,6 +37,7 @@ jobs:
 
       - name: Check dependencies
         run: |
+          safe-chain setup-ci
           #LOCKFILES=($(find . -type f -name "package-lock.json" -o -name "pnpm-lock.yaml" -o -name "yarn.lock"))
           LOCKFILES=($(find . -type f -name "package-lock.json" -o -name "yarn.lock"))
           echo "$LOCKFILES"
