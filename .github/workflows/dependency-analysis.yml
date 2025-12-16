@@ -28,16 +28,13 @@ jobs:
 
       - name: Check dependencies
         run: |
-          ls -la
-          LOCKFILES=($(find . -type f -name "package-lock.json" -o -name "pnpm-lock.yaml" -o -name "yarn.lock"))
+          #LOCKFILES=($(find . -type f -name "package-lock.json" -o -name "pnpm-lock.yaml" -o -name "yarn.lock"))
+          LOCKFILES=($(find . -type f -name "package-lock.json" -o -name "yarn.lock"))
           echo "$LOCKFILES"
           if [[ ${#LOCKFILES[@]} -gt 0 ]]; then
             for LOCKFILE in "${LOCKFILES[@]}"; do
-              echo "$LOCKFILE"
-              pwd
               cd $(dirname "$LOCKFILE")
-              pwd
-              echo "running npm ci on $LOCKFILE"
+              echo "::notice:: running npm ci on $LOCKFILE"
               npm ci --verbose
               cd -
             done
