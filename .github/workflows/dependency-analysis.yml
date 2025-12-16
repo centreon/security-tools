@@ -32,9 +32,14 @@ jobs:
       - name: Install dependencies
         run: |
           LOCKFILES=($(find ./ -name "package-lock.json" -o -name "pnpm-lock.yaml" -o -name "yarn.lock"))
+          echo "LOCKFILES"
           if [[ -z "$LOCKFILES" ]]; then
             for LOCKFILE in "${LOCKFILES[@]}"; do
+              echo "$LOCKFILE"
+              pwd
               cd $(dirname "$LOCKFILE")
+              pwd
+              echo "running npm ci on $LOCKFILE"
               npm ci --verbose
               cd -
             done
