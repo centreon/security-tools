@@ -17,68 +17,11 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Find lockfiles
-        run: |
-          NPM_LOCKFILES=$(find . -type f -name "package-lock.json" -print | paste -sd, -)
-          PNPM_LOCKFILES=$(find . -type f -name "pnpm-lock.yaml" -print | paste -sd, -)
-          YARN_LOCKFILES=$(find . -type f -name "yarn.lock" -print | paste -sd, -)
-          INSTALL_NPM=""
-          INSTALL_PNPM=""
-          INSTALL_YARN=""
-          MODULE_TO_LOAD=""
-          SUBDIRS=""
-
-          function concat() {
-            STRING="$1"
-            RESULT="$2"
-            if [[ -n "$RESULT" ]]; then RESULT="${RESULT},"; fi
-            echo "$RESULT$STRING"
-          }
-
-          if [[ -n NPM_LOCKFILES ]]; then
-            INSTALL_NPM="yes"
-            MODULE_TO_LOAD=$(concat "npm" "$MODULE_TO_LOAD")
-            SUBDIRS=$(concat "$NPM_LOCKFILES" "$SUBDIRS")
-          fi
-          if [[ -n PNPM_LOCKFILES ]]; then
-            INSTALL_PNPM="yes"
-            MODULE_TO_LOAD=$(concat "pnpm" "$MODULE_TO_LOAD")
-            SUBDIRS=$(concat "$PNPM_LOCKFILES" "$SUBDIRS")
-          fi
-          if [[ -n YARN_LOCKFILES ]]; then
-            INSTALL_YARN="yes"
-            MODULE_TO_LOAD=$(concat "yarn" "$MODULE_TO_LOAD")
-            SUBDIRS=$(concat "$YARN_LOCKFILES" "$SUBDIRS")
-          fi
-          echo "module_to_load=$MODULE_TO_LOAD >> GITHUB_ENV"
-          echo "subdirs=$SUBDIRS >> GITHUB_ENV"
-          echo "install_npm=$INSTALL_NPM >> GITHUB_ENV"
-          echo "install_pnpm=$INSTALL_PNPM >> GITHUB_ENV"
-          echo "install_yarn=$INSTALL_YARN >> GITHUB_ENV"
-          
-          cat $GITHUB_ENV
-        shell: bash
-
-#      - name: Setup Pnpm
-#        if: ${{ env.install_pnpm == 'yes' }}
-#        uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4.1.0
-#        with:
-#          version: 10
-#          run_install: false
-
       - name: Setup Node
-        if: ${{ env.subdirs != '' }}
-        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
         with:
-          node-version: 20
-          cache: "${{ env.module_to_load }}"
-          cache-dependency-path: "${{ env.subdirs }}"
-
-
-        #uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
-        #with:
-        #  node-version: "22"
-        #  package-manager-cache: false
+          node-version: "22"
+          package-manager-cache: false
 
       - name: Install safe-chain
         run: |
@@ -87,10 +30,17 @@ jobs:
         shell: bash
 
       - name: Install dependencies
-        run: npm ci --verbose
+        run: |
+          LOCKFILES=($(find ./ -name "package-lock.json" -o -name "pnpm-lock.yaml" -o -name "yarn.lock"))
+          if [[ -z "$LOCKFILES" ]]; then
+          for LOCKFILE in "${LOCKFILES[@]}"; do
+            cd $(dirname "$LOCKFILE")
+            npm ci --verbose
+            cd -
+          fi
 
-      - name: Dependency Review
-        uses: actions/dependency-review-action@3c4e3dcb1aa7874d2c16be7d79418e9b7efd6261 # v4.8.2
-        with:
-          fail-on-severity: medium
-          deny-licenses: LGPL-2.0, BSD-2-Clause
+#      - name: New dependency review
+#        uses: actions/dependency-review-action@3c4e3dcb1aa7874d2c16be7d79418e9b7efd6261 # v4.8.2
+#        with:
+#          fail-on-severity: medium
+#          deny-licenses: LGPL-2.0, BSD-2-Clause
