@@ -3,9 +3,6 @@ name: dependency-checks
 on:
   workflow_call:
 
-permissions:
-  contents: read
-
 jobs:
   dependency-scan:
     name: Run dependency analysis
@@ -29,12 +26,12 @@ jobs:
           curl -fsSL https://raw.githubusercontent.com/AikidoSec/safe-chain/main/install-scripts/install-safe-chain.sh | sh -s -- --ci
         shell: bash
 
-      - name: Install dependencies
+      - name: Check dependencies
         run: |
           ls -la
           LOCKFILES=($(find . -type f -name "package-lock.json" -o -name "pnpm-lock.yaml" -o -name "yarn.lock"))
-          echo "LOCKFILES"
-          if [[ -z "$LOCKFILES" ]]; then
+          echo "$LOCKFILES"
+          if [[ ${#LOCKFILES[@]} -gt 0 ]]; then
             for LOCKFILE in "${LOCKFILES[@]}"; do
               echo "$LOCKFILE"
               pwd
@@ -45,6 +42,7 @@ jobs:
               cd -
             done
           fi
+        shell: bash
 
 #      - name: New dependency review
 #        uses: actions/dependency-review-action@3c4e3dcb1aa7874d2c16be7d79418e9b7efd6261 # v4.8.2
