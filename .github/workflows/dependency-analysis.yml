@@ -22,57 +22,52 @@ jobs:
           NPM_LOCKFILES=$(find . -type f -name "package-lock.json" -print | paste -sd, -)
           PNPM_LOCKFILES=$(find . -type f -name "pnpm-lock.yaml" -print | paste -sd, -)
           YARN_LOCKFILES=$(find . -type f -name "yarn.lock" -print | paste -sd, -)
+          INSTALL_NPM=""
+          INSTALL_PNPM=""
+          INSTALL_YARN=""
           MODULE_TO_LOAD=""
           SUBDIRS=""
-          
-          #function concat() {
-          #  MODULE=$1
-          #  if [[ -n $MODULE_TO_LOADS ]]; then MODULE_TO_LOADS="${MODULE_TO_LOADS}, "; fi
-          #  MODULE_TO_LOAD="${MODULE_TO_LOAD}"
-          #}
 
           function concat() {
-            MODULE=$1
-            TARGET=$2
-            if [[ -n $TARGET ]]; then TARGET="${TARGET},"; fi
-            TARGET="${MODULE}"
+            STRING="$1"
+            RESULT="$2"
+            if [[ -n "$RESULT" ]]; then RESULT="${RESULT},"; fi
+            echo "$RESULT$STRING"
           }
-          
-          if [[ -z NPM_LOCKFILES ]]; then
-            concat "npm" "$MODULE_TO_LOAD"
-            concat "$NPM_LOCKFILES" "$SUBDIRS"
+
+          if [[ -n NPM_LOCKFILES ]]; then
+            INSTALL_NPM="yes"
+            MODULE_TO_LOAD=$(concat "npm" "$MODULE_TO_LOAD")
+            SUBDIRS=$(concat "$NPM_LOCKFILES" "$SUBDIRS")
           fi
-          if [[ -z PNPM_LOCKFILES ]]; then
-            concat "pnpm"
-            concat "$PNPM_LOCKFILES" "$SUBDIRS"
+          if [[ -n PNPM_LOCKFILES ]]; then
+            INSTALL_PNPM="yes"
+            MODULE_TO_LOAD=$(concat "pnpm" "$MODULE_TO_LOAD")
+            SUBDIRS=$(concat "$PNPM_LOCKFILES" "$SUBDIRS")
           fi
-          if [[ -z YARN_LOCKFILES ]]; then
-            concat "yarn"
-            concat "$YARN_LOCKFILES" "$SUBDIRS"
+          if [[ -n YARN_LOCKFILES ]]; then
+            INSTALL_YARN="yes"
+            MODULE_TO_LOAD=$(concat "yarn" "$MODULE_TO_LOAD")
+            SUBDIRS=$(concat "$YARN_LOCKFILES" "$SUBDIRS")
           fi
-          
           echo "module_to_load=$MODULE_TO_LOAD >> GITHUB_ENV"
           echo "subdirs=$SUBDIRS >> GITHUB_ENV"
+          echo "install_npm=$INSTALL_NPM >> GITHUB_ENV"
+          echo "install_pnpm=$INSTALL_PNPM >> GITHUB_ENV"
+          echo "install_yarn=$INSTALL_YARN >> GITHUB_ENV"
+          
           cat $GITHUB_ENV
         shell: bash
 
-      - uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4.1.0
-        with:
-          version: 10
-          run_install: false
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
-        with:
-          node-version: 20
-          cache: pnpm
-          cache-dependency-path: ${{ inputs.dependencies_lock_file }}
+#      - name: Setup Pnpm
+#        if: ${{ env.install_pnpm == 'yes' }}
+#        uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4.1.0
+#        with:
+#          version: 10
+#          run_install: false
 
       - name: Setup Node
-        uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4.1.0
-        with:
-          version: 10
-          run_install: false
-
-      - name: Setup Node
+        if: ${{ env.subdirs != '' }}
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version: 20
@@ -89,8 +84,6 @@ jobs:
         run: |
           echo "Installing Aikido safe-chain"
           curl -fsSL https://raw.githubusercontent.com/AikidoSec/safe-chain/main/install-scripts/install-safe-chain.sh | sh -s -- --ci
-          #echo "Get safe-chain version"
-          #safe-chain --version
         shell: bash
 
       - name: Install dependencies
