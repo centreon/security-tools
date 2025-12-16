@@ -33,9 +33,9 @@ jobs:
       - name: Install safe-chain
         run: |
           echo "Installing Aikido safe-chain"
-          curl -fsSL https://raw.githubusercontent.com/AikidoSec/safe-chain/main/install-scripts/install-safe-chain.sh | sh -s -- --ci --include-python
-          echo "Get safe-chain version"
-          safe-chain --version
+          curl -fsSL https://raw.githubusercontent.com/AikidoSec/safe-chain/main/install-scripts/install-safe-chain.sh | sh -s -- --ci
+          #echo "Get safe-chain version"
+          #safe-chain --version
         shell: bash
 
       - name: Install dependencies
