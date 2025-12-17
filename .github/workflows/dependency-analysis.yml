@@ -25,7 +25,6 @@ jobs:
           fetch-depth: 0
 
       - name: Find lockfiles
-        id: find_lockfiles
         run: |
           #NPM_LOCKFILES=$(find . -type f -name "package-lock.json" -print | paste -sd, -)
           #PNPM_LOCKFILES=$(find . -type f -name "pnpm-lock.yaml" -print | paste -sd, -)
@@ -34,7 +33,7 @@ jobs:
           NPM_LOCKFILES=$(find . -type f -name "package-lock.json")
           PNPM_LOCKFILES=$(find . -type f -name "pnpm-lock.yaml")
           YARN_LOCKFILES=$(find . -type f -name "yarn.lock")
-          MODULES_TO_LOAD="false"
+          MODULES_TO_LOAD=""
           SUBDIRS=""
 
           function concat() {
@@ -81,7 +80,7 @@ jobs:
           cat $GITHUB_ENV
 
       - name: Setup Node
-        if: env.modules_to_load != 'false'
+        if: env.modules_to_load != ''
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version: 20
@@ -103,14 +102,14 @@ jobs:
       # check history to get the script
 
       - name: Install safe-chain
-        if: env.modules_to_load != 'false'
+        if: env.modules_to_load != ''
         run: |
           echo "Installing Aikido safe-chain"
           curl -fsSL https://raw.githubusercontent.com/AikidoSec/safe-chain/main/install-scripts/install-safe-chain.sh | sh -s -- --ci
         shell: bash
 
       - name: Check dependencies
-        if: env.modules_to_load != 'false'
+        if: env.modules_to_load != ''
         run: |
           safe-chain setup-ci
 
@@ -137,7 +136,7 @@ jobs:
             done
           }
 
-          if [[ ${{ env.npm_lockfiles }} != '' ]]; then
+          if [[ ${{ env.npm_lockfiles }} == 'true' ]]; then
             loop "npm" "$npm_lockfiles"
           fi
           if [[ ${{ env.pnpm_lockfiles }} == 'true' ]]; then
