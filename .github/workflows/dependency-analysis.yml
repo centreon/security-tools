@@ -3,7 +3,10 @@ name: dependency-checks
 on:
   workflow_call:
     inputs:
-      - basedir:
+      module_directory:
+        description: 'Component path'
+        required: false
+        default: "."
 
 jobs:
   dependency-scan:
