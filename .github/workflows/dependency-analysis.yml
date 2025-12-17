@@ -73,7 +73,7 @@ jobs:
 
           echo "enable_analysis=$ENABLE_QG" >> $GITHUB_ENV
           echo "project_tag=$PROJECT_TAG" >> $GITHUB_ENV
-          cat $GITHUB_ENV
+          cat "$GITHUB_ENV"
 
       - name: Setup Node
         if: env.modules_to_load != ''
