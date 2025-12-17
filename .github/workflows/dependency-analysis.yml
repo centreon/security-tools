@@ -44,15 +44,15 @@ jobs:
             echo "$RESULT$STRING"
           }
 
-          if [[ -n NPM_LOCKFILES ]]; then
+          if [[ -n "$NPM_LOCKFILES" ]]; then
             MODULES_TO_LOAD=$(concat "npm" "$MODULES_TO_LOAD")
             #SUBDIRS=$(concat "$NPM_LOCKFILES" "$SUBDIRS")
           fi
-          if [[ -n PNPM_LOCKFILES ]]; then
+          if [[ -n "$PNPM_LOCKFILES" ]]; then
             MODULES_TO_LOAD=$(concat "pnpm" "$MODULES_TO_LOAD")
             #SUBDIRS=$(concat "$PNPM_LOCKFILES" "$SUBDIRS")
           fi
-          if [[ -n YARN_LOCKFILES ]]; then
+          if [[ -n "$YARN_LOCKFILES" ]]; then
             MODULES_TO_LOAD=$(concat "yarn" "$MODULES_TO_LOAD")
             #SUBDIRS=$(concat "$YARN_LOCKFILES" "$SUBDIRS")
           fi
