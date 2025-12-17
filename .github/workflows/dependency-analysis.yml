@@ -12,8 +12,8 @@ on:
       minimum_package_age_hours:
         description: 'Allowed minimum package age'
         required: false
-        type: number
-        default: 48
+        type: string
+        default: "48"
 
 #permissions:
 #  contents: read
@@ -84,6 +84,8 @@ jobs:
 
       - name: Install safe-chain
         if: env.modules_to_load != ''
+        env:
+          SAFE_CHAIN_VERSION: "1.3.2"
         run: |
           curl -fsSL https://raw.githubusercontent.com/AikidoSec/safe-chain/main/install-scripts/install-safe-chain.sh | sh -s -- --ci
           echo "[INFO] - Set min age to ${{ inputs.minimum_package_age_hours }}"
