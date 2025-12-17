@@ -101,11 +101,11 @@ jobs:
           safe-chain setup-ci
 
           function loop() {
-            DEP_MANAGER=$1
-            LOCKFILES=$2
+            DEP_MANAGER="$1"
+            LOCKFILES="$2"
             for LOCKFILE in "${LOCKFILES[@]}"; do
               cd $(dirname "$LOCKFILE")
-              echo "::notice:: Scanning $LOCKFILE" with $DEP_MANAGER
+              echo "::notice:: Scanning $LOCKFILE with $DEP_MANAGER"
               case "$DEP_MANAGER" in
                 npm)
                   npm ci --verbose
