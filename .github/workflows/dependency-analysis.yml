@@ -15,8 +15,8 @@ on:
         type: string
         default: "48"
 
-permissions:
-  contents: read
+#permissions:
+#  contents: read
 
 jobs:
   dependency-scan:
