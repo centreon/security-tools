@@ -105,8 +105,11 @@ jobs:
             which yarn
           fi
 
+          echo "[DEBUG] - node"
           node --version
+          echo "[DEBUG] - npm"
           npm --version
+          echo "[DEBUG] - yarn"
           yarn --version
           
           function loop() {
