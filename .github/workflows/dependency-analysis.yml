@@ -118,7 +118,7 @@ jobs:
             DEP_MANAGER="$1"
             LOCKFILES="$2"
             echo "[DEBUG] - $LOCKFILES"
-            for LOCKFILE in "(${LOCKFILES//,/ })"; do
+            for LOCKFILE in "${LOCKFILES//,/ }"; do
               echo "[INFO] - Scanning $LOCKFILE with $DEP_MANAGER"
               PATH=$(dirname "$LOCKFILE")
               cd "$PATH"
