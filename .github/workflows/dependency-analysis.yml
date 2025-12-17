@@ -65,19 +65,19 @@ jobs:
         shell: bash
 
       - name: Setup Pnpm
-        if: ${{ env.npm_lockfiles != '' }}
+        if: env.pnpm_lockfiles != ''
         uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4.1.0
         with:
           version: 10
           run_install: false
 
       - name: Setup yarn
-        if: ${{ env.yarn_lockfiles != '' }}
+        if: env.yarn_lockfiles != ''
         run: npm install -g yarn pnpm
         shell: bash
 
       - name: Setup Node
-        if: ${{ env.modules_to_load != '' }}
+        if: env.modules_to_load != ''
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version: 20
@@ -99,14 +99,14 @@ jobs:
       # check history to get the script
 
       - name: Install safe-chain
-        if: ${{ env.modules_to_load != '' }}
+        if: env.modules_to_load != ''
         run: |
           echo "Installing Aikido safe-chain"
           curl -fsSL https://raw.githubusercontent.com/AikidoSec/safe-chain/main/install-scripts/install-safe-chain.sh | sh -s -- --ci
         shell: bash
 
       - name: Check dependencies
-        if: ${{ env.modules_to_load != '' }}
+        if: env.modules_to_load != ''
         run: |
           safe-chain setup-ci
 
