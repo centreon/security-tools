@@ -1,6 +1,7 @@
 name: dependency-checks
 
 on:
+  pull_request:
   workflow_call:
     inputs:
       module_directory:
