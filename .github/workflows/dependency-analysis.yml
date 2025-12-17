@@ -90,23 +90,18 @@ jobs:
           export SAFE_CHAIN_MINIMUM_PACKAGE_AGE_HOURS="${{ inputs.minimum_package_age_hours }}"
         shell: bash
 
-      - name: Install latest npm
-        run: |
-          echo "[INFO] - Current safe-chain version"
-          safe-chain --version
-          echo "[INFO] - Current npm version: $(npm -v)"
-          npm install -g npm@latest
-          echo "[INFO] - Updated npm version: $(npm -v)"
-
       - name: Check dependencies
         if: env.modules_to_load != ''
         run: |
+          echo "[INFO] - Current safe-chain version"
+          safe-chain setup
           echo "[INFO] - Install package managers"
           if [[ "${{ env.yarn_lockfiles }}" != '' ]]; then
             npm install -g yarn npm
-
-            which yarn
           fi
+          echo "[INFO] - Current npm version: $(npm -v)"
+          npm install -g npm@latest
+          echo "[INFO] - Updated npm version: $(npm -v)"
 
           echo "[DEBUG] - node"
           node --version
