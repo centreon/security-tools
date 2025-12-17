@@ -2,6 +2,8 @@ name: dependency-checks
 
 on:
   workflow_call:
+    inputs:
+      - basedir:
 
 jobs:
   dependency-scan:
@@ -14,19 +16,78 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup Node
-        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+      - name: Find lockfiles
+        id: find_lockfiles
+        run: |
+          #NPM_LOCKFILES=$(find . -type f -name "package-lock.json" -print | paste -sd, -)
+          #PNPM_LOCKFILES=$(find . -type f -name "pnpm-lock.yaml" -print | paste -sd, -)
+          #YARN_LOCKFILES=$(find . -type f -name "yarn.lock" -print | paste -sd, -)
+
+          NPM_LOCKFILES=$(find . -type f -name "package-lock.json")
+          PNPM_LOCKFILES=$(find . -type f -name "pnpm-lock.yaml")
+          YARN_LOCKFILES=$(find . -type f -name "yarn.lock")
+          MODULES_TO_LOAD=""
+          SUBDIRS=""
+
+          function concat() {
+            STRING="$1"
+            RESULT="$2"
+            if [[ -n "$RESULT" ]]; then RESULT="${RESULT},"; fi
+            echo "$RESULT$STRING"
+          }
+
+          if [[ -n NPM_LOCKFILES ]]; then
+            MODULES_TO_LOAD=$(concat "npm" "$MODULES_TO_LOAD")
+            #SUBDIRS=$(concat "$NPM_LOCKFILES" "$SUBDIRS")
+          fi
+          if [[ -n PNPM_LOCKFILES ]]; then
+            MODULES_TO_LOAD=$(concat "pnpm" "$MODULES_TO_LOAD")
+            #SUBDIRS=$(concat "$PNPM_LOCKFILES" "$SUBDIRS")
+          fi
+          if [[ -n YARN_LOCKFILES ]]; then
+            MODULES_TO_LOAD=$(concat "yarn" "$MODULES_TO_LOAD")
+            #SUBDIRS=$(concat "$YARN_LOCKFILES" "$SUBDIRS")
+          fi
+          echo "modules_to_load=$MODULES_TO_LOAD >> GITHUB_ENV"
+          #echo "subdirs=$SUBDIRS >> GITHUB_ENV"
+          echo "npm_lockfiles=$NPM_LOCKFILES >> GITHUB_ENV"
+          echo "pnpm_lockfiles=$PNPM_LOCKFILES >> GITHUB_ENV"
+          echo "yarn_lockfiles=$YARN_LOCKFILES >> GITHUB_ENV"
+          cat $GITHUB_ENV
+        shell: bash
+
+      - name: Setup Pnpm
+        if: toJSON(steps.find_lockfiles.pnpm_lockfiles) != '{}'
+        uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4.1.0
         with:
-          node-version: "22"
-          package-manager-cache: false
+          version: 10
+          run_install: false
+
+      - name: Setup yarn
+        if: toJSON(steps.find_lockfiles.yarn_lockfiles) != '{}'
+        run: npm install -g yarn pnpm
+        shell: bash
+
+      - name: Setup Node
+        if: ${{ env.modules_to_load != '' }}
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 20
+          cache: "${{ env.modules_to_load }}"
+          #cache-dependency-path: "${{ env.subdirs }}"
+
+      #      - name: Setup Node
+      #        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+      #        with:
+      #          node-version: "22"
+      #          package-manager-cache: false
 
       # https://github.com/search?q=https%3A%2F%2Fraw.githubusercontent.com%2FAikidoSec%2Fsafe-chain&type=code
       ## Check package types
-      ## install dependency managers
       ## launch one installation per tool
-      ## pnpm install --frozen-lockfile
+      ##
       ## npm ci
-      ## yarn install --frozen-lockfile
+      ##
       # check history to get the script
 
       - name: Install safe-chain
@@ -38,16 +99,37 @@ jobs:
       - name: Check dependencies
         run: |
           safe-chain setup-ci
-          #LOCKFILES=($(find . -type f -name "package-lock.json" -o -name "pnpm-lock.yaml" -o -name "yarn.lock"))
-          LOCKFILES=($(find . -type f -name "package-lock.json" -o -name "yarn.lock"))
-          echo "$LOCKFILES"
-          if [[ ${#LOCKFILES[@]} -gt 0 ]]; then
+
+          function loop() {
+            DEP_MANAGER=$1
+            LOCKFILES=$2
             for LOCKFILE in "${LOCKFILES[@]}"; do
               cd $(dirname "$LOCKFILE")
-              echo "::notice:: running npm ci on $LOCKFILE"
-              npm ci --verbose
+              echo "::notice:: Scanning $LOCKFILE" with $DEP_MANAGER
+              case "$DEP_MANAGER" in
+                npm)
+                  npm ci --verbose
+                  ;;
+                pnpm)
+                  pnpm install --frozen-lockfile
+                  ;;
+                yarn)
+                  yarn install --frozen-lockfile
+                  ;;
+                *)
+                  echo "::warning::$DEP_MANAGER not supported"
               cd -
             done
+          }
+
+          if [[ ${{ env.npm_lockfiles }} != '' ]]; then
+            loop "npm" "$npm_lockfiles"
+          fi
+          if [[ ${{ env.pnpm_lockfiles }} == 'true' ]]; then
+            loop "pnpm" "$pnpm_lockfiles" 
+          fi
+          if [[ ${{ env.yarn_lockfiles }} == 'true' ]]; then
+            loop "yarn" "$yarn_lockfiles" 
           fi
         shell: bash
 
