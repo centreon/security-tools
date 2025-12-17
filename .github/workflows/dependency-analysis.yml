@@ -122,18 +122,19 @@ jobs:
                   ;;
                 *)
                   echo "::warning::$DEP_MANAGER not supported"
+                  ;;
               esac
               cd -
             done
           }
 
-          if [[ ${{ env.npm_lockfiles }} == 'true' ]]; then
+          if [[ "${{ env.npm_lockfiles }}" == 'true' ]]; then
             loop "npm" "$npm_lockfiles"
           fi
-          if [[ ${{ env.pnpm_lockfiles }} == 'true' ]]; then
+          if [[ "${{ env.pnpm_lockfiles }}" == 'true' ]]; then
             loop "pnpm" "$pnpm_lockfiles" 
           fi
-          if [[ ${{ env.yarn_lockfiles }} == 'true' ]]; then
+          if [[ "${{ env.yarn_lockfiles }}" == 'true' ]]; then
             loop "yarn" "$yarn_lockfiles" 
           fi
         shell: bash
