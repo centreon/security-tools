@@ -9,6 +9,11 @@ on:
         required: false
         type: string
         default: "."
+      minimum_package_age_hours:
+        description: 'Allowed minimum package age'
+        required: false
+        type: string
+        default: "48"
 
 permissions:
   contents: read
@@ -102,9 +107,13 @@ jobs:
       - name: Check dependencies
         if: env.modules_to_load != ''
         run: |
+          echo "::debug:: Conf safe chain"
           safe-chain setup-ci
+          echo "::debug:: Set min age"
+          export SAFE_CHAIN_MINIMUM_PACKAGE_AGE_HOURS="${{ inputs.minimum_package_age_hours }}"
 
           function loop() {
+            echo "::debug:: Begin loop"
             DEP_MANAGER="$1"
             LOCKFILES="$2"
             for LOCKFILE in "${LOCKFILES[@]}"; do
@@ -126,17 +135,23 @@ jobs:
               esac
               cd -
             done
+            echo "::debug:: End loop"
           }
 
+          echo "::debug:: Begin case"
           if [[ "${{ env.npm_lockfiles }}" == 'true' ]]; then
+            echo "::debug:: Trigger loop for npm"
             loop "npm" "$npm_lockfiles"
           fi
           if [[ "${{ env.pnpm_lockfiles }}" == 'true' ]]; then
-            loop "pnpm" "$pnpm_lockfiles" 
+            echo "::debug:: Trigger loop for pnpm"
+            loop "pnpm" "$pnpm_lockfiles"
           fi
           if [[ "${{ env.yarn_lockfiles }}" == 'true' ]]; then
+            echo "::debug:: Trigger loop for yarn"
             loop "yarn" "$yarn_lockfiles" 
           fi
+          echo "::debug:: End case"
         shell: bash
 
 #      - name: New dependency review
