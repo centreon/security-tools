@@ -92,14 +92,13 @@ jobs:
         if: env.modules_to_load != ''
         run: |
           curl -fsSL https://raw.githubusercontent.com/AikidoSec/safe-chain/main/install-scripts/install-safe-chain.sh | sh -s -- --ci
+          echo "[INFO] - Set min age to ${{ inputs.minimum_package_age_hours }}"
+          export SAFE_CHAIN_MINIMUM_PACKAGE_AGE_HOURS="${{ inputs.minimum_package_age_hours }}"
         shell: bash
 
       - name: Check dependencies
         if: env.modules_to_load != ''
         run: |
-          echo "[INFO] - Set min age"
-          export SAFE_CHAIN_MINIMUM_PACKAGE_AGE_HOURS="${{ inputs.minimum_package_age_hours }}"
-
           function loop() {
             echo "[DEBUG] - Begin loop"
             DEP_MANAGER="$1"
