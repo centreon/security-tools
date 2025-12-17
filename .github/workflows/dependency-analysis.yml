@@ -12,8 +12,8 @@ on:
       minimum_package_age_hours:
         description: 'Allowed minimum package age'
         required: false
-        type: string
-        default: "48"
+        type: number
+        default: 48
 
 #permissions:
 #  contents: read
