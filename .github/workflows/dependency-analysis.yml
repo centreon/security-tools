@@ -26,15 +26,10 @@ jobs:
 
       - name: Find lockfiles
         run: |
-          #NPM_LOCKFILES=$(find . -type f -name "package-lock.json" -print | paste -sd, -)
-          #PNPM_LOCKFILES=$(find . -type f -name "pnpm-lock.yaml" -print | paste -sd, -)
-          #YARN_LOCKFILES=$(find . -type f -name "yarn.lock" -print | paste -sd, -)
-
           NPM_LOCKFILES=$(find . -type f -name "package-lock.json")
           PNPM_LOCKFILES=$(find . -type f -name "pnpm-lock.yaml")
           YARN_LOCKFILES=$(find . -type f -name "yarn.lock")
           MODULES_TO_LOAD=""
-          SUBDIRS=""
 
           function concat() {
             STRING="$1"
@@ -45,21 +40,17 @@ jobs:
 
           if [[ -n "$NPM_LOCKFILES" ]]; then
             MODULES_TO_LOAD=$(concat "npm" "$MODULES_TO_LOAD")
-            #SUBDIRS=$(concat "$NPM_LOCKFILES" "$SUBDIRS")
           fi
           if [[ -n "$PNPM_LOCKFILES" ]]; then
             MODULES_TO_LOAD=$(concat "pnpm" "$MODULES_TO_LOAD")
-            #SUBDIRS=$(concat "$PNPM_LOCKFILES" "$SUBDIRS")
           fi
           if [[ -n "$YARN_LOCKFILES" ]]; then
             MODULES_TO_LOAD=$(concat "yarn" "$MODULES_TO_LOAD")
-            #SUBDIRS=$(concat "$YARN_LOCKFILES" "$SUBDIRS")
           fi
-          echo "modules_to_load=$MODULES_TO_LOAD >> GITHUB_ENV"
-          #echo "subdirs=$SUBDIRS >> $GITHUB_ENV"
-          echo "npm_lockfiles=$NPM_LOCKFILES >> $GITHUB_ENV"
-          echo "pnpm_lockfiles=$PNPM_LOCKFILES >> $GITHUB_ENV"
-          echo "yarn_lockfiles=$YARN_LOCKFILES >> $GITHUB_ENV"
+          echo "modules_to_load=$MODULES_TO_LOAD" >> $GITHUB_ENV
+          echo "npm_lockfiles=$NPM_LOCKFILES" >> $GITHUB_ENV
+          echo "pnpm_lockfiles=$PNPM_LOCKFILES" >> $GITHUB_ENV
+          echo "yarn_lockfiles=$YARN_LOCKFILES" >> $GITHUB_ENV
           cat $GITHUB_ENV
         shell: bash
 
