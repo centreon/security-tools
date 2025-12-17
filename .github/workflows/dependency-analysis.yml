@@ -56,10 +56,10 @@ jobs:
             #SUBDIRS=$(concat "$YARN_LOCKFILES" "$SUBDIRS")
           fi
           echo "modules_to_load=$MODULES_TO_LOAD >> GITHUB_ENV"
-          #echo "subdirs=$SUBDIRS >> GITHUB_ENV"
-          echo "npm_lockfiles=$NPM_LOCKFILES >> GITHUB_ENV"
-          echo "pnpm_lockfiles=$PNPM_LOCKFILES >> GITHUB_ENV"
-          echo "yarn_lockfiles=$YARN_LOCKFILES >> GITHUB_ENV"
+          #echo "subdirs=$SUBDIRS >> $GITHUB_ENV"
+          echo "npm_lockfiles=$NPM_LOCKFILES >> $GITHUB_ENV"
+          echo "pnpm_lockfiles=$PNPM_LOCKFILES >> $GITHUB_ENV"
+          echo "yarn_lockfiles=$YARN_LOCKFILES >> $GITHUB_ENV"
           cat $GITHUB_ENV
         shell: bash
 
