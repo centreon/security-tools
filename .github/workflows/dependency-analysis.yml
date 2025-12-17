@@ -7,6 +7,7 @@ on:
       module_directory:
         description: 'Component path'
         required: false
+        type: string
         default: "."
 
 jobs:
