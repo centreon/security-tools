@@ -108,8 +108,8 @@ jobs:
           function loop() {
             echo "[DEBUG] - Begin loop"
             DEP_MANAGER="$1"
-            LOCKFILES="$2"
-            IFS=',' read -ra array <<< "$LOCKFILES"
+            SEARCH_LOCKFILES="$2"
+            IFS=',' read -ra LOCKFILES <<< "$SEARCH_LOCKFILES"
             for LOCKFILE in "${LOCKFILES[@]}"; do
               cd $(dirname "$LOCKFILE")
               echo "[INFO] - Scanning $LOCKFILE with $DEP_MANAGER"
