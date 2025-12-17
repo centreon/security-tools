@@ -112,13 +112,13 @@ jobs:
               echo "::notice:: Scanning $LOCKFILE with $DEP_MANAGER"
               case "$DEP_MANAGER" in
                 npm)
-                  npm ci --verbose
+                  npm ci --safe-chain-logging=verbose
                   ;;
                 pnpm)
-                  pnpm install --frozen-lockfile
+                  pnpm install --frozen-lockfile --safe-chain-logging=verbose
                   ;;
                 yarn)
-                  yarn install --frozen-lockfile
+                  yarn install --frozen-lockfile --safe-chain-logging=verbose
                   ;;
                 *)
                   echo "::warning::$DEP_MANAGER not supported"
