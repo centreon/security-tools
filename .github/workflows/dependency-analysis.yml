@@ -30,6 +30,7 @@ jobs:
           fetch-depth: 0
 
       - name: Find lockfiles
+        if: ${{ 'true' == 'false' }}
         run: |
           NPM_LOCKFILES=$(find . -type f -name "package-lock.json" -print | paste -sd, -)
           PNPM_LOCKFILES=$(find . -type f -name "pnpm-lock.yaml" -print | paste -sd, -)
@@ -60,7 +61,6 @@ jobs:
         shell: bash
 
       - name: Setup Pnpm
-        if: env.pnpm_lockfiles != ''
         uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4.1.0
         with:
           version: 10
@@ -68,7 +68,6 @@ jobs:
           cache: true
 
       - name: Setup Node
-        if: env.modules_to_load != ''
         uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
         with:
           node-version: 22
@@ -77,7 +76,6 @@ jobs:
       # https://github.com/search?q=https%3A%2F%2Fraw.githubusercontent.com%2FAikidoSec%2Fsafe-chain&type=code
 
       - name: Install safe-chain
-        if: env.modules_to_load != ''
         env:
           SAFE_CHAIN_VERSION: "1.2.4"
         run: |
@@ -87,12 +85,10 @@ jobs:
         shell: bash
 
       - name: Check dependencies
-        if: env.modules_to_load != ''
         run: |
-          echo "[INFO] - Install package managers"
-          if [[ "${{ env.yarn_lockfiles }}" != '' ]]; then
-            npm install -g yarn
-          fi
+          echo "[INFO] - Install yarn managers"
+          npm install -g yarn
+          
           #echo "[INFO] - Current npm version: $(npm -v)"
           #npm install -g npm@latest
           #echo "[INFO] - Updated npm version: $(npm -v)"
@@ -106,48 +102,30 @@ jobs:
           #echo "[DEBUG] - scripts"
           ls -laR /home/runner/.safe-chain
 
-          function loop() {
-            DEP_MANAGER="$1"
-            SEARCH_LOCKFILES="$2"
-            echo "[DEBUG] - $SEARCH_LOCKFILES"
-            LOCKFILES=(${SEARCH_LOCKFILES//,/ })
-            for LOCKFILE in "${LOCKFILES[@]}"; do
-              echo "[INFO] - Scanning $LOCKFILE with $DEP_MANAGER"
-              PATH=$(dirname "$LOCKFILE")
-              cd "$PATH"
-              case "$DEP_MANAGER" in
-                npm)
-                  #npm ci --safe-chain-logging=verbose
-                  #npm ci
-                  ;;
-                pnpm)
-                  #pnpm install --frozen-lockfile --safe-chain-logging=verbose
-                  pnpm install --frozen-lockfile
-                  ;;
-                yarn)
-                  #yarn install --frozen-lockfile --safe-chain-logging=verbose
-                  yarn install --frozen-lockfile
-                  ;;
-                *)
-                  echo "[WARN] - $DEP_MANAGER not supported"
-                  ;;
-              esac
-              cd -
-            done
-          }
-
-          if [[ "${{ env.npm_lockfiles }}" != '' ]]; then
-            echo "[DEBUG] - Trigger loop for npm"
-            loop "npm" "$npm_lockfiles"
-          fi
-          if [[ "${{ env.pnpm_lockfiles }}" != '' ]]; then
-            echo "[DEBUG] - Trigger loop for pnpm"
-            loop "pnpm" "$pnpm_lockfiles"
-          fi
-          if [[ "${{ env.yarn_lockfiles }}" != '' ]]; then
-            echo "[DEBUG] - Trigger loop for yarn"
-            loop "yarn" "$yarn_lockfiles" 
-          fi
+          MANIFESTS=$(find . -type f -name "package.json")
+          for MANIFEST in "${MANIFESTS[@]}"; do
+            echo "[INFO] - Scanning $MANIFEST with $DEP_MANAGER"
+            PATH=$(dirname "$MANIFEST")
+            cd "$PATH"
+            case "$DEP_MANAGER" in
+              npm)
+                #npm ci --safe-chain-logging=verbose
+                #
+                ;;
+              pnpm)
+                #pnpm install --frozen-lockfile --safe-chain-logging=verbose
+                pnpm install --frozen-lockfile
+                ;;
+              yarn)
+                #yarn install --frozen-lockfile --safe-chain-logging=verbose
+                yarn install --frozen-lockfile
+                ;;
+              *)
+                echo "[WARN] - $DEP_MANAGER not supported"
+                ;;
+            esac
+            cd -
+          done
         shell: bash
 
 #      - name: New dependency review
