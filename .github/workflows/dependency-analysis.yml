@@ -90,6 +90,12 @@ jobs:
           export SAFE_CHAIN_MINIMUM_PACKAGE_AGE_HOURS="${{ inputs.minimum_package_age_hours }}"
         shell: bash
 
+      - name: Install latest npm
+        run: |
+          echo "Current npm version: $(npm -v)"
+          npm install -g npm@latest
+          echo "Updated npm version: $(npm -v)"
+
       - name: Check dependencies
         if: env.modules_to_load != ''
         run: |
@@ -99,28 +105,31 @@ jobs:
             which yarn
           fi
 
-          which npm
-          which pnpm
+          node --version
+          node --version
+          pnpm --version
+          yarn --version
           
           function loop() {
             echo "[DEBUG] - Begin loop"
             DEP_MANAGER="$1"
             SEARCH_LOCKFILES="$2"
             echo "[DEBUG] - $SEARCH_LOCKFILES"
-            IFS=',' read -ra LOCKFILES <<< "$SEARCH_LOCKFILES"
+            #IFS=',' read -ra LOCKFILES <<< "$SEARCH_LOCKFILES"
+            LOCKFILES=(${SEARCH_LOCKFILES//,/ })
             for LOCKFILE in "${LOCKFILES[@]}"; do
               echo "[INFO] - Scanning $LOCKFILE with $DEP_MANAGER"
               PATH=$(dirname "$LOCKFILE")
               cd "$PATH"
               case "$DEP_MANAGER" in
                 npm)
-                  /home/runner/.safe-chain/shims/npm ci --safe-chain-logging=verbose
+                  npm ci --safe-chain-logging=verbose
                   ;;
                 pnpm)
-                  /home/runner/.safe-chain/shims/pnpm install --frozen-lockfile --safe-chain-logging=verbose
+                  pnpm install --frozen-lockfile --safe-chain-logging=verbose
                   ;;
                 yarn)
-                  /home/runner/.safe-chain/shims/yarn install --frozen-lockfile --safe-chain-logging=verbose
+                  yarn install --frozen-lockfile --safe-chain-logging=verbose
                   ;;
                 *)
                   echo "[WARN] - $DEP_MANAGER not supported"
