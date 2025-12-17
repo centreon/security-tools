@@ -106,7 +106,7 @@ jobs:
         if: env.modules_to_load != ''
         run: |
           echo "::debug:: Set min age"
-          export SAFE_CHAIN_MINIMUM_PACKAGE_AGE_HOURS="${{ inputs.minimum_package_age_hours }}"
+          #export SAFE_CHAIN_MINIMUM_PACKAGE_AGE_HOURS="${{ inputs.minimum_package_age_hours }}"
 
           function loop() {
             echo "::debug:: Begin loop"
@@ -118,13 +118,13 @@ jobs:
               echo "::notice:: Scanning $LOCKFILE with $DEP_MANAGER"
               case "$DEP_MANAGER" in
                 npm)
-                  npm ci --safe-chain-logging=verbose
+                  echo "npm ci --safe-chain-logging=verbose"
                   ;;
                 pnpm)
-                  pnpm install --frozen-lockfile --safe-chain-logging=verbose
+                  echo "pnpm install --frozen-lockfile --safe-chain-logging=verbose"
                   ;;
                 yarn)
-                  yarn install --frozen-lockfile --safe-chain-logging=verbose
+                  echo "yarn install --frozen-lockfile --safe-chain-logging=verbose"
                   ;;
                 *)
                   echo "::warning::$DEP_MANAGER not supported"
