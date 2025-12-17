@@ -71,7 +71,7 @@ jobs:
         if: env.modules_to_load != ''
         uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
         with:
-          node-version: 20
+          node-version: 22
           package-manager-cache: true
 
       #      - name: Setup Node
@@ -95,8 +95,6 @@ jobs:
       - name: Check dependencies
         if: env.modules_to_load != ''
         run: |
-          echo "[INFO] - Current safe-chain version"
-          safe-chain setup
           echo "[INFO] - Install package managers"
           if [[ "${{ env.yarn_lockfiles }}" != '' ]]; then
             npm install -g yarn npm
@@ -111,7 +109,10 @@ jobs:
           npm --version
           echo "[DEBUG] - yarn"
           yarn --version
-          
+          #echo "[DEBUG] - scripts"
+          #find . -name ".safe-chain"
+          #ll
+
           function loop() {
             echo "[DEBUG] - Begin loop"
             DEP_MANAGER="$1"
