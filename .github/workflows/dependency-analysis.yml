@@ -67,11 +67,6 @@ jobs:
           run_install: false
           cache: true
 
-      - name: Setup yarn
-        if: env.yarn_lockfiles != ''
-        run: npm install -g yarn
-        shell: bash
-
       - name: Setup Node
         if: env.modules_to_load != ''
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
@@ -99,6 +94,12 @@ jobs:
       - name: Check dependencies
         if: env.modules_to_load != ''
         run: |
+          echo "[INFO] - Install package managers"
+          npm install -g npm@latest
+          if [[ "${{ env.yarn_lockfiles }}" != '' ]]; then
+            npm install -g yarn npm
+          fi
+
           function loop() {
             echo "[DEBUG] - Begin loop"
             DEP_MANAGER="$1"
