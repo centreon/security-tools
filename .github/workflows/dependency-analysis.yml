@@ -96,17 +96,14 @@ jobs:
       - name: Install safe-chain
         if: env.modules_to_load != ''
         run: |
-          echo "Installing Aikido safe-chain"
           curl -fsSL https://raw.githubusercontent.com/AikidoSec/safe-chain/main/install-scripts/install-safe-chain.sh | sh -s -- --ci
-          #echo "[DEBUG] - Conf safe chain"
-          #safe-chain setup-ci
         shell: bash
 
       - name: Check dependencies
         if: env.modules_to_load != ''
         run: |
-          echo "[DEBUG] - Set min age"
-          #export SAFE_CHAIN_MINIMUM_PACKAGE_AGE_HOURS="${{ inputs.minimum_package_age_hours }}"
+          echo "[INFO] - Set min age"
+          export SAFE_CHAIN_MINIMUM_PACKAGE_AGE_HOURS="${{ inputs.minimum_package_age_hours }}"
 
           function loop() {
             echo "[DEBUG] - Begin loop"
@@ -115,19 +112,19 @@ jobs:
             IFS=',' read -ra array <<< "$LOCKFILES"
             for LOCKFILE in "${LOCKFILES[@]}"; do
               cd $(dirname "$LOCKFILE")
-              echo "::notice:: Scanning $LOCKFILE with $DEP_MANAGER"
+              echo "[INFO] - Scanning $LOCKFILE with $DEP_MANAGER"
               case "$DEP_MANAGER" in
                 npm)
-                  echo "npm ci --safe-chain-logging=verbose"
+                  npm ci --safe-chain-logging=verbose
                   ;;
                 pnpm)
-                  echo "pnpm install --frozen-lockfile --safe-chain-logging=verbose"
+                  pnpm install --frozen-lockfile --safe-chain-logging=verbose
                   ;;
                 yarn)
-                  echo "yarn install --frozen-lockfile --safe-chain-logging=verbose"
+                  yarn install --frozen-lockfile --safe-chain-logging=verbose
                   ;;
                 *)
-                  echo "::warning::$DEP_MANAGER not supported"
+                  echo "[WARN] - $DEP_MANAGER not supported"
                   ;;
               esac
               cd -
