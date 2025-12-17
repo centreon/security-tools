@@ -102,13 +102,13 @@ jobs:
         run: |
           echo "Installing Aikido safe-chain"
           curl -fsSL https://raw.githubusercontent.com/AikidoSec/safe-chain/main/install-scripts/install-safe-chain.sh | sh -s -- --ci
+          #echo "::debug:: Conf safe chain"
+          #safe-chain setup-ci
         shell: bash
 
       - name: Check dependencies
         if: env.modules_to_load != ''
         run: |
-          echo "::debug:: Conf safe chain"
-          safe-chain setup-ci
           echo "::debug:: Set min age"
           export SAFE_CHAIN_MINIMUM_PACKAGE_AGE_HOURS="${{ inputs.minimum_package_age_hours }}"
 
