@@ -133,15 +133,15 @@ jobs:
           }
 
           echo "[DEBUG] - Begin case"
-          if [[ "${{ env.npm_lockfiles }}" == 'true' ]]; then
+          if [[ "${{ env.npm_lockfiles }}" != '' ]]; then
             echo "[DEBUG] - Trigger loop for npm"
             loop "npm" "$npm_lockfiles"
           fi
-          if [[ "${{ env.pnpm_lockfiles }}" == 'true' ]]; then
+          if [[ "${{ env.pnpm_lockfiles }}" != '' ]]; then
             echo "[DEBUG] - Trigger loop for pnpm"
             loop "pnpm" "$pnpm_lockfiles"
           fi
-          if [[ "${{ env.yarn_lockfiles }}" == 'true' ]]; then
+          if [[ "${{ env.yarn_lockfiles }}" != '' ]]; then
             echo "[DEBUG] - Trigger loop for yarn"
             loop "yarn" "$yarn_lockfiles" 
           fi
