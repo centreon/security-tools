@@ -65,10 +65,11 @@ jobs:
         with:
           version: 10
           run_install: false
+          cache: true
 
       - name: Setup yarn
         if: env.yarn_lockfiles != ''
-        run: npm install -g yarn pnpm
+        run: npm install -g yarn
         shell: bash
 
       - name: Setup Node
