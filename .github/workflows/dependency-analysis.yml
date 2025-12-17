@@ -96,7 +96,7 @@ jobs:
           echo "[INFO] - Install package managers"
           if [[ "${{ env.yarn_lockfiles }}" != '' ]]; then
             npm install -g yarn npm
-            wich yarn
+            which yarn
           fi
 
           which npm
