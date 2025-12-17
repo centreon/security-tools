@@ -56,7 +56,7 @@ jobs:
           echo "npm_lockfiles=$NPM_LOCKFILES" >> $GITHUB_ENV
           echo "pnpm_lockfiles=$PNPM_LOCKFILES" >> $GITHUB_ENV
           echo "yarn_lockfiles=$YARN_LOCKFILES" >> $GITHUB_ENV
-          cat $GITHUB_ENV
+          #cat $GITHUB_ENV
         shell: bash
 
       - name: Setup Pnpm
