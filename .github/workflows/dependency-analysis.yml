@@ -76,7 +76,7 @@ jobs:
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version: 20
-          #cache: "${{ env.modules_to_load }}"
+          cache: npm
           #cache-dependency-path: "${{ env.subdirs }}"
 
       #      - name: Setup Node
@@ -86,12 +86,6 @@ jobs:
       #          package-manager-cache: false
 
       # https://github.com/search?q=https%3A%2F%2Fraw.githubusercontent.com%2FAikidoSec%2Fsafe-chain&type=code
-      ## Check package types
-      ## launch one installation per tool
-      ##
-      ## npm ci
-      ##
-      # check history to get the script
 
       - name: Install safe-chain
         if: env.modules_to_load != ''
