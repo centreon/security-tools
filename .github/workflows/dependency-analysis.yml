@@ -34,7 +34,7 @@ jobs:
           NPM_LOCKFILES=$(find . -type f -name "package-lock.json")
           PNPM_LOCKFILES=$(find . -type f -name "pnpm-lock.yaml")
           YARN_LOCKFILES=$(find . -type f -name "yarn.lock")
-          MODULES_TO_LOAD=""
+          MODULES_TO_LOAD="false"
           SUBDIRS=""
 
           function concat() {
@@ -76,8 +76,12 @@ jobs:
         run: npm install -g yarn pnpm
         shell: bash
 
+          echo "enable_analysis=$ENABLE_QG" >> $GITHUB_ENV
+          echo "project_tag=$PROJECT_TAG" >> $GITHUB_ENV
+          cat $GITHUB_ENV
+
       - name: Setup Node
-        if: env.modules_to_load != ''
+        if: env.modules_to_load != 'false'
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version: 20
@@ -99,14 +103,14 @@ jobs:
       # check history to get the script
 
       - name: Install safe-chain
-        if: env.modules_to_load != ''
+        if: env.modules_to_load != 'false'
         run: |
           echo "Installing Aikido safe-chain"
           curl -fsSL https://raw.githubusercontent.com/AikidoSec/safe-chain/main/install-scripts/install-safe-chain.sh | sh -s -- --ci
         shell: bash
 
       - name: Check dependencies
-        if: env.modules_to_load != ''
+        if: env.modules_to_load != 'false'
         run: |
           safe-chain setup-ci
 
