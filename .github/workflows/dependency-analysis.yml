@@ -31,9 +31,9 @@ jobs:
 
       - name: Find lockfiles
         run: |
-          NPM_LOCKFILES=$(find . -type f -name "package-lock.json")
-          PNPM_LOCKFILES=$(find . -type f -name "pnpm-lock.yaml")
-          YARN_LOCKFILES=$(find . -type f -name "yarn.lock")
+          NPM_LOCKFILES=$(find . -type f -name "package-lock.json" -print | paste -sd, -)
+          PNPM_LOCKFILES=$(find . -type f -name "pnpm-lock.yaml" -print | paste -sd, -)
+          YARN_LOCKFILES=$(find . -type f -name "yarn.lock" -print | paste -sd, -)
           MODULES_TO_LOAD=""
 
           function concat() {
@@ -56,7 +56,7 @@ jobs:
           echo "npm_lockfiles=$NPM_LOCKFILES" >> $GITHUB_ENV
           echo "pnpm_lockfiles=$PNPM_LOCKFILES" >> $GITHUB_ENV
           echo "yarn_lockfiles=$YARN_LOCKFILES" >> $GITHUB_ENV
-          #cat $GITHUB_ENV
+          cat $GITHUB_ENV
         shell: bash
 
       - name: Setup Pnpm
@@ -116,6 +116,7 @@ jobs:
             echo "::debug:: Begin loop"
             DEP_MANAGER="$1"
             LOCKFILES="$2"
+            IFS=',' read -ra array <<< "$LOCKFILES"
             for LOCKFILE in "${LOCKFILES[@]}"; do
               cd $(dirname "$LOCKFILE")
               echo "::notice:: Scanning $LOCKFILE with $DEP_MANAGER"
