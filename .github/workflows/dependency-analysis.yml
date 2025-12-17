@@ -102,6 +102,7 @@ jobs:
           echo "[INFO] - Install package managers"
           if [[ "${{ env.yarn_lockfiles }}" != '' ]]; then
             npm install -g yarn npm
+
             which yarn
           fi
 
@@ -115,23 +116,24 @@ jobs:
           function loop() {
             echo "[DEBUG] - Begin loop"
             DEP_MANAGER="$1"
-            SEARCH_LOCKFILES="$2"
-            echo "[DEBUG] - $SEARCH_LOCKFILES"
-            #IFS=',' read -ra LOCKFILES <<< "$SEARCH_LOCKFILES"
-            LOCKFILES=(${SEARCH_LOCKFILES//,/ })
-            for LOCKFILE in "${LOCKFILES[@]}"; do
+            LOCKFILES="$2"
+            echo "[DEBUG] - $LOCKFILES"
+            for LOCKFILE in "(${LOCKFILES//,/ })"; do
               echo "[INFO] - Scanning $LOCKFILE with $DEP_MANAGER"
               PATH=$(dirname "$LOCKFILE")
               cd "$PATH"
               case "$DEP_MANAGER" in
                 npm)
-                  npm ci --safe-chain-logging=verbose
+                  #npm ci --safe-chain-logging=verbose
+                  npm ci
                   ;;
                 pnpm)
-                  pnpm install --frozen-lockfile --safe-chain-logging=verbose
+                  #pnpm install --frozen-lockfile --safe-chain-logging=verbose
+                  pnpm install --frozen-lockfile
                   ;;
                 yarn)
-                  yarn install --frozen-lockfile --safe-chain-logging=verbose
+                  #yarn install --frozen-lockfile --safe-chain-logging=verbose
+                  yarn install --frozen-lockfile
                   ;;
                 *)
                   echo "[WARN] - $DEP_MANAGER not supported"
