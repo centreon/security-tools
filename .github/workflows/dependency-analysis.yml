@@ -106,8 +106,7 @@ jobs:
           fi
 
           node --version
-          node --version
-          pnpm --version
+          npm --version
           yarn --version
           
           function loop() {
