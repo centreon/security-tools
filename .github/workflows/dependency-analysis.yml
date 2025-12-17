@@ -98,18 +98,18 @@ jobs:
         run: |
           echo "Installing Aikido safe-chain"
           curl -fsSL https://raw.githubusercontent.com/AikidoSec/safe-chain/main/install-scripts/install-safe-chain.sh | sh -s -- --ci
-          #echo "::debug:: Conf safe chain"
+          #echo "[DEBUG] - Conf safe chain"
           #safe-chain setup-ci
         shell: bash
 
       - name: Check dependencies
         if: env.modules_to_load != ''
         run: |
-          echo "::debug:: Set min age"
+          echo "[DEBUG] - Set min age"
           #export SAFE_CHAIN_MINIMUM_PACKAGE_AGE_HOURS="${{ inputs.minimum_package_age_hours }}"
 
           function loop() {
-            echo "::debug:: Begin loop"
+            echo "[DEBUG] - Begin loop"
             DEP_MANAGER="$1"
             LOCKFILES="$2"
             IFS=',' read -ra array <<< "$LOCKFILES"
@@ -132,23 +132,23 @@ jobs:
               esac
               cd -
             done
-            echo "::debug:: End loop"
+            echo "[DEBUG] - End loop"
           }
 
-          echo "::debug:: Begin case"
+          echo "[DEBUG] - Begin case"
           if [[ "${{ env.npm_lockfiles }}" == 'true' ]]; then
-            echo "::debug:: Trigger loop for npm"
+            echo "[DEBUG] - Trigger loop for npm"
             loop "npm" "$npm_lockfiles"
           fi
           if [[ "${{ env.pnpm_lockfiles }}" == 'true' ]]; then
-            echo "::debug:: Trigger loop for pnpm"
+            echo "[DEBUG] - Trigger loop for pnpm"
             loop "pnpm" "$pnpm_lockfiles"
           fi
           if [[ "${{ env.yarn_lockfiles }}" == 'true' ]]; then
-            echo "::debug:: Trigger loop for yarn"
+            echo "[DEBUG] - Trigger loop for yarn"
             loop "yarn" "$yarn_lockfiles" 
           fi
-          echo "::debug:: End case"
+          echo "[DEBUG] - End case"
         shell: bash
 
 #      - name: New dependency review
