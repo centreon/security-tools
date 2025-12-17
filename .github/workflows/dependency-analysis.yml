@@ -71,10 +71,6 @@ jobs:
         run: npm install -g yarn pnpm
         shell: bash
 
-          echo "enable_analysis=$ENABLE_QG" >> $GITHUB_ENV
-          echo "project_tag=$PROJECT_TAG" >> $GITHUB_ENV
-          cat "$GITHUB_ENV"
-
       - name: Setup Node
         if: env.modules_to_load != ''
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
