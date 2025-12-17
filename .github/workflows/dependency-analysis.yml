@@ -123,6 +123,7 @@ jobs:
                   ;;
                 *)
                   echo "::warning::$DEP_MANAGER not supported"
+              esac
               cd -
             done
           }
