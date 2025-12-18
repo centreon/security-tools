@@ -9,14 +9,17 @@ on:
         required: false
         type: string
         default: "."
-      minimum_package_age_hours:
-        description: 'Allowed minimum package age'
-        required: false
-        type: number
-        default: 48
+#      minimum_package_age_hours:
+#        description: 'Allowed minimum package age'
+#        required: false
+#        type: number
+#        default: 48
 
 permissions:
   contents: read
+
+env:
+  minimum_package_age_hours: 168 # 7 days
 
 jobs:
   dependency-scan:
@@ -33,7 +36,6 @@ jobs:
         uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4.1.0
         with:
           version: 10
-          cache: true
 
       - name: Setup Node
         uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
@@ -48,29 +50,29 @@ jobs:
         #  SAFE_CHAIN_VERSION: "1.2.4"
         run: |
           curl -fsSL https://raw.githubusercontent.com/AikidoSec/safe-chain/main/install-scripts/install-safe-chain.sh | sh -s -- --ci
-          #echo "[INFO] - Set min age to ${{ inputs.minimum_package_age_hours }}"
-          #export SAFE_CHAIN_MINIMUM_PACKAGE_AGE_HOURS="${{ inputs.minimum_package_age_hours }}"
+          echo "[INFO] - Set min age to ${{ env.minimum_package_age_hours }}"
+          export SAFE_CHAIN_MINIMUM_PACKAGE_AGE_HOURS="${{ env.minimum_package_age_hours }}"
         shell: bash
 
       - name: Check dependencies
-        run: |
-          echo "[INFO] - Set min age to ${{ inputs.minimum_package_age_hours || 48 }}"
-          
-          echo "[INFO] - Install yarn managers"
-          npm install -g yarn
-          
-          #echo "[INFO] - Current npm version: $(npm -v)"
-          #npm install -g npm@latest
-          #echo "[INFO] - Updated npm version: $(npm -v)"
+        run: |          
+          #echo "[INFO] - Install yarn managers"
+          #npm install -g yarn
 
-          echo "[DEBUG] - node"
-          node --version
-          echo "[DEBUG] - npm"
-          npm --version
-          echo "[DEBUG] - yarn"
-          yarn --version
-          #echo "[DEBUG] - scripts"
-          ls -laR /home/runner/.safe-chain
+#          echo "[INFO] - Current npm version: $(npm -v)"
+#          npm install -g npm@latest
+#          echo "[INFO] - Updated npm version: $(npm -v)"
+
+#          echo "[DEBUG] - node"
+#          node --version
+#          echo "[DEBUG] - npm"
+#          npm --version
+#          echo "[DEBUG] - yarn"
+#          yarn --version
+#          echo "[DEBUG] - scripts"
+#          ls -laR /home/runner/.safe-chain
+
+          find . -type f -name "package.json" -printf '%h\n'
 
           MANIFESTS_LOC=$(find . -type f -name "package.json" -printf '%h\n')
           for MANIFEST_LOC in "${MANIFESTS_LOC[@]}"; do
