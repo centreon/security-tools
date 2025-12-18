@@ -73,7 +73,7 @@ jobs:
           #echo "[DEBUG] - scripts"
           #ls -laR /home/runner/.safe-chain
 
-          find . -type f -name "package.json" -print0 | xargs -0 -n1 dirname | sort -u'
+          find . -type f -name "package.json" -print0 | xargs -0 -n1 dirname | sort -u
 
           MANIFESTS_LOC=$(find . -type f -name "package.json" -print0 | xargs -0 -n1 dirname | sort -u)
           for MANIFEST_LOC in "${MANIFESTS_LOC[@]}"; do
