@@ -50,27 +50,28 @@ jobs:
         #  SAFE_CHAIN_VERSION: "1.2.4"
         run: |
           curl -fsSL https://raw.githubusercontent.com/AikidoSec/safe-chain/main/install-scripts/install-safe-chain.sh | sh -s -- --ci
-          echo "[INFO] - Set min age to ${{ env.minimum_package_age_hours }}"
-          export SAFE_CHAIN_MINIMUM_PACKAGE_AGE_HOURS="${{ env.minimum_package_age_hours }}"
         shell: bash
 
       - name: Check dependencies
-        run: |          
+        run: |
           #echo "[INFO] - Install yarn managers"
           #npm install -g yarn
 
-#          echo "[INFO] - Current npm version: $(npm -v)"
-#          npm install -g npm@latest
-#          echo "[INFO] - Updated npm version: $(npm -v)"
+          echo "[INFO] - Set min age to ${{ env.minimum_package_age_hours }}"
+          export SAFE_CHAIN_MINIMUM_PACKAGE_AGE_HOURS="${{ env.minimum_package_age_hours }}"
 
-#          echo "[DEBUG] - node"
-#          node --version
-#          echo "[DEBUG] - npm"
-#          npm --version
-#          echo "[DEBUG] - yarn"
-#          yarn --version
-#          echo "[DEBUG] - scripts"
-#          ls -laR /home/runner/.safe-chain
+          #echo "[INFO] - Current npm version: $(npm -v)"
+          #npm install -g npm@latest
+          #echo "[INFO] - Updated npm version: $(npm -v)"
+
+          #echo "[DEBUG] - node"
+          #node --version
+          #echo "[DEBUG] - npm"
+          #npm --version
+          #echo "[DEBUG] - yarn"
+          #yarn --version
+          #echo "[DEBUG] - scripts"
+          #ls -laR /home/runner/.safe-chain
 
           find . -type f -name "package.json" -printf '%h\n'
 
