@@ -1,11 +1,29 @@
 name: dependency-checks
 
 on:
+  pull_request:
   workflow_call:
+    inputs:
+      module_directory:
+        description: 'Component path'
+        required: false
+        type: string
+        default: "."
+#      minimum_package_age_hours:
+#        description: 'Allowed minimum package age'
+#        required: false
+#        type: number
+#        default: 48
+
+permissions:
+  contents: read
+
+env:
+  minimum_package_age_hours: 168 # 7 days
 
 jobs:
   dependency-scan:
-    name: Run internal dependency script
+    name: Run dependency analysis
     runs-on: ${{ github.repository_visibility != 'public' && 'centreon-security' || 'ubuntu-24.04' }}
 
     steps:
@@ -14,124 +32,76 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Run dependency scan
+      - name: Setup Pnpm
+        uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4.1.0
+        with:
+          version: 10
+
+      - name: Setup Node
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with:
+          node-version: 22
+          package-manager-cache: true
+
+      # https://github.com/search?q=https%3A%2F%2Fraw.githubusercontent.com%2FAikidoSec%2Fsafe-chain&type=code
+
+      - name: Install safe-chain
+        #env:
+        #  SAFE_CHAIN_VERSION: "1.2.4"
         run: |
-          if [ -f compromised-packages.txt ]; then rm -f compromised-packages.txt; fi
-          wget https://raw.githubusercontent.com/centreon/security-tools/main/blacklist/compromised-packages.txt
-          ERROR_LOG="error_log.txt"
-          DEP_LIST="compromised-packages.txt"
-          LOCKFILES=($(find ./ -name "package-lock.json" -o -name "pnpm-lock.yaml" -o -name "yarn.lock"))
-
-          function checkPnpmLockfile() {
-            # Find dependency formated as
-            # "name@version:"
-            if grep -qF "$NAME@$VERSION" "$LOCKFILE"; then
-              echo "$NAME:$VERSION was found in $LOCKFILE"
-              echo "::error:: $NAME:$VERSION was found in $LOCKFILE" >> "$ERROR_LOG"
-            else
-                echo -n "."
-            fi
-          }
-
-          function checkNpmLockfile() {
-            # Find dependencies formated as
-            # "@accordproject/concerto-linter-default-ruleset": {
-            #      "version": "3.24.1",
-            local package="$1"
-            local version="$2"
-            local extractedDep
-
-            extractedDep=$(awk -v name="$package" -v version="$version" '
-              /"dependencies": *{/ { in_deps=1; next }
-              in_deps && /"[^"]+": *{/ {
-                match($0, /"([^"]+)": *{/, arr)
-                dep = arr[1]
-                getline
-                if ($0 ~ /"version":/) {
-                  match($0, /"version": *"([^"]+)"/, ver)
-                  if (dep == name && ver[1] == version) {
-                    print dep " " ver[1]
-                  }
-                }
-              }
-              ' "$LOCKFILE"
-            )
-            if [[ "$extractedDep" == "$package $version" ]]; then
-              echo "$package:$version" "Was found in $LOCKFILE"
-              echo "::error:: $package:$version Was found in $LOCKFILE" >> "$ERROR_LOG"
-            else
-                echo -n "."
-            fi
-          }
-
-          function checkYarnLockfile() {
-            # Find dependencies formated as
-            # "@aashutoshrathi/word-wrap@^1.2.3":
-            #    version "1.2.6"
-            local package="$1"
-            local version="$2"
-            local extractedDep
-          
-            extractedDep=$(awk -v pkg="$package" '
-                /^".*":$/ {
-                  split($0, arr, ",")
-                  dep=arr[1]
-                  gsub(/"/, "", dep)
-                  sub(/@[^@]*$/, "", dep)
-                  current_pkg=dep
-                }
-                /version "/ {
-                  match($0, /"([^"]+)"/, v)
-                  if(current_pkg==pkg) print current_pkg, v[1]
-                }
-              ' "$LOCKFILE")
-            if [[ "$extractedDep" == "$package $version" ]]; then
-              echo "$package:$version Was found in $LOCKFILE"
-              echo "::error:: $package:$version Was found in $LOCKFILE" >> "$ERROR_LOG"
-            else
-                echo -n "."
-            fi
-          }
-
-          function checkManifest() {
-            COUNT=0
-            echo "::info:: Testing manifest $LOCKFILE"
-            manifest_type=$(basename "$LOCKFILE")
-
-            while IFS=':' read -r NAME VERSION; do
-              # ignore empty and commented lines
-              [[ -z "${NAME// }" ]] && continue
-              [[ "$NAME" =~ ^# ]] && continue
-              #echo "DEBUG To check $NAME $VERSION"
-              case "$manifest_type" in
-                "pnpm-lock.yaml")
-                  checkPnpmLockfile
-                  ;;
-                "yarn.lock")
-                  checkYarnLockfile "$NAME" "$VERSION"
-                  ;;
-                "package-lock.json")
-                  checkNpmLockfile "$NAME" "$VERSION"
-                  ;;
-                "*")
-                  echo "KO manifest not managed"
-                  exit 1
-              esac
-              COUNT=$((COUNT+1))
-            done < "$DEP_LIST"
-            echo "Scanned $COUNT IOC"
-          }
-
-          touch "$ERROR_LOG"
-          for LOCKFILE in "${LOCKFILES[@]}"; do
-            checkManifest "$LOCKFILE"
-          done
-          if [ -s "$ERROR_LOG" ]; then
-            echo -e "\nFATAL Breaking the run as following dependencies were found:"
-            cat "$ERROR_LOG"
-            exit 1
-          else
-            echo "OK nothing found"
-          fi
-
+          curl -fsSL https://raw.githubusercontent.com/AikidoSec/safe-chain/main/install-scripts/install-safe-chain.sh | sh -s -- --ci
         shell: bash
+
+      - name: Check dependencies
+        run: |
+          echo "[INFO] - Set min age to ${{ env.minimum_package_age_hours }}"
+          export SAFE_CHAIN_MINIMUM_PACKAGE_AGE_HOURS="${{ env.minimum_package_age_hours }}"
+          
+          #echo "[INFO] - Install yarn managers"
+          #npm install -g yarn
+          #echo "[INFO] - Current npm version: $(npm -v)"
+          #npm install -g npm@latest
+          #echo "[INFO] - Updated npm version: $(npm -v)"
+          #echo "[DEBUG] - node"
+          #node --version
+          #echo "[DEBUG] - npm"
+          #npm --version
+          #echo "[DEBUG] - yarn"
+          #yarn --version
+          #echo "[DEBUG] - scripts"
+          #ls -laR /home/runner/.safe-chain
+
+          MANIFESTS=$(find ./ -type f -name "package-lock.json" -o -name "pnpm-lock.yaml" -o -name "yarn.lock")
+          for MANIFEST in ${MANIFESTS[@]}; do
+            #echo "[INFO] - Scanning $MANIFEST"
+            #LOCATION=$(echo "$MANIFEST" | rev | cut -d/ -f1 --complement | rev)
+            #FILE=$(echo "$MANIFEST" | rev | cut -d/ -f1 | rev)
+            #echo "[DEBUG] - location = $LOCATION"
+            #echo "[DEBUG] - file = $FILE"
+            #cd "$LOCATION"
+
+            echo "[INFO] - Scanning $MANIFEST"
+            #LOCATION=$(echo "$MANIFEST" | rev | cut -d/ -f1 --complement | rev)
+            LOCATION=$(dirname "$MANIFEST")
+            #FILE=$(echo "$MANIFEST" | cut -d/ -f2)
+            FILE=$(basename "$MANIFEST")
+            echo "manifest = $MANIFEST"
+            echo "location = $LOCATION"
+            echo "file = $FILE"
+            cd "$LOCATION"
+
+            case "$FILE" in
+              "yarn.lock") yarn install --frozen-lockfile ;;
+              "package-lock.json") npm ci ;;
+              "pnpm-lock.yaml") pnpm install --frozen-lockfile ;;
+              *) echo "dependency manager not managed" ;;
+            esac
+            cd ~-
+          done
+        shell: bash
+
+#      - name: New dependency review
+#        uses: actions/dependency-review-action@3c4e3dcb1aa7874d2c16be7d79418e9b7efd6261 # v4.8.2
+#        with:
+#          fail-on-severity: medium
+#          deny-licenses: LGPL-2.0, BSD-2-Clause
