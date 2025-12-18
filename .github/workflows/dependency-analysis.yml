@@ -73,12 +73,23 @@ jobs:
 
           MANIFESTS=$(find ./ -type f -name "package-lock.json" -o -name "pnpm-lock.yaml" -o -name "yarn.lock")
           for MANIFEST in ${MANIFESTS[@]}; do
+            #echo "[INFO] - Scanning $MANIFEST"
+            #LOCATION=$(echo "$MANIFEST" | rev | cut -d/ -f1 --complement | rev)
+            #FILE=$(echo "$MANIFEST" | rev | cut -d/ -f1 | rev)
+            #echo "[DEBUG] - location = $LOCATION"
+            #echo "[DEBUG] - file = $FILE"
+            #cd "$LOCATION"
+
             echo "[INFO] - Scanning $MANIFEST"
-            LOCATION=$(echo "$MANIFEST" | rev | cut -d/ -f1 --complement | rev)
-            FILE=$(echo "$MANIFEST" | rev | cut -d/ -f1 | rev)
-            echo "[DEBUG] - location = $LOCATION"
-            echo "[DEBUG] - file = $FILE"
+            #LOCATION=$(echo "$MANIFEST" | rev | cut -d/ -f1 --complement | rev)
+            LOCATION=$(dirname "$MANIFEST")
+            #FILE=$(echo "$MANIFEST" | cut -d/ -f2)
+            FILE=$(basename "$MANIFEST")
+            echo "manifest = $MANIFEST"
+            echo "location = $LOCATION"
+            echo "file = $FILE"
             cd "$LOCATION"
+
             case "$FILE" in
               "yarn.lock") yarn install --frozen-lockfile ;;
               "package-lock.json") npm ci ;;
