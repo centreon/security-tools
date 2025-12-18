@@ -82,7 +82,6 @@ jobs:
             ls
             #npm ci --safe-chain-logging=verbose
             cd ~-
-            echo "
           done
         shell: bash
 
