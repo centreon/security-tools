@@ -72,28 +72,11 @@ jobs:
           #echo "[DEBUG] - scripts"
           ls -laR /home/runner/.safe-chain
 
-          MANIFESTS=$(find . -type f -name "package.json")
-          for MANIFEST in "${MANIFESTS[@]}"; do
-            echo "[INFO] - Scanning $MANIFEST with $DEP_MANAGER"
-            PATH=$(dirname "$MANIFEST")
-            cd "$PATH"
-            case "$DEP_MANAGER" in
-              npm)
-                #npm ci --safe-chain-logging=verbose
-                #
-                ;;
-              pnpm)
-                #pnpm install --frozen-lockfile --safe-chain-logging=verbose
-                pnpm install --frozen-lockfile
-                ;;
-              yarn)
-                #yarn install --frozen-lockfile --safe-chain-logging=verbose
-                yarn install --frozen-lockfile
-                ;;
-              *)
-                echo "[WARN] - $DEP_MANAGER not supported"
-                ;;
-            esac
+          MANIFESTS_LOC=$(find . -type f -name "package.json" -printf '%h\n')
+          for MANIFEST_LOC in "${MANIFESTS_LOC[@]}"; do
+            echo "[INFO] - Scanning $MANIFEST_LOC/package.json"
+            cd "$MANIFEST_LOC"
+            npm ci --safe-chain-logging=verbose
             cd -
           done
         shell: bash
