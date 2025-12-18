@@ -80,7 +80,7 @@ jobs:
             MANIFEST=$(echo "$MANIFEST" | rev | cut -d/ -f1 --complement | rev)
             cd "$MANIFEST"
             ls
-            #npm ci --safe-chain-logging=verbose
+            npm ci --safe-chain-logging=verbose
             cd ~-
           done
         shell: bash
