@@ -50,17 +50,17 @@ jobs:
       - name: Check dependencies and managers
         run: |
           # Check override
-          if [[ "$VAR_OVERRIDE_DEPENDENCY_SCAN" == "true" ]]; then
+          if [ "${{ vars.OVERRIDE_DEPENDENCY_SCAN }}" == "true" ]; then
             echo "[DEBUG] - Global scan override enabled"
             return 0
-          elif [[ "$VAR_OVERRIDE_PNPM_COMPLIANCE" == "true" ]]; then
+          elif [[ "${{ vars.OVERRIDE_PNPM_COMPLIANCE }}" == "true" ]]; then
             echo "[DEBUG] - PNPM scan override enabled"
             return 0
           fi
           
           # Check date
           current_timestamp=$(date +%s)
-          DUE_DATE="2026-01-31"
+          DUE_DATE="${{ vars.OVERRIDE_DEPENDENCY_ENFORCEMENT_DATE }}"
           input_timestamp=$(date -d "$DUE_DATE" +%s)
 
           # Set env
@@ -73,7 +73,7 @@ jobs:
           fi
 
           function message_type() {
-            if [[ $ENFORCEMENT == "true" ]]; then
+            if [ $ENFORCEMENT == "true" ]; then
               echo "[ERROR] : $1"
             else
               echo "[WARNING] : $1"
