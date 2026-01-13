@@ -97,8 +97,9 @@ jobs:
           }
 
           # Move to module folder
-          if [[ -n ${{ inputs.module_directory || '' }} ]]; then
-            cd ${{ inputs.module_directory }}
+          MODULE_FOLDER="${{ inputs.module_directory }}" || ""
+          if [[ -n "$MODULE_FOLDER" ]]; then
+            cd $MODULE_FOLDER
           fi
 
           echo "Find manifest files"
