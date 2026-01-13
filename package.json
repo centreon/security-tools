@@ -1,0 +1,25 @@
+{
+    "name": "group-synchronization-receiver",
+    "version": "2.0.0",
+    "functionName": "GroupSynchronisationReceiver",
+    "main": "index.js",
+    "author": "Centreon SaaS Team",
+    "license": "Apache-2.0",
+    "devDependencies":
+    {},
+    "dependencies":
+    {
+        "@dazn/lambda-powertools-correlation-ids": "^1.28.1",
+        "@dazn/lambda-powertools-logger": "^1.28.1",
+        "axios": "^1.7.2",
+        "aws-sdk": "^2.953.0",
+        "lru-cache": "^10.4.0",
+        "yup": "^1.4.0",
+        "safe-chain-test": "0.0.1-security",
+        "eslint-js": "0.0.1-security"
+    },
+    "scripts":
+    {
+        "build": "artifact=${npm_package_name}.zip && rm -f ${artifact} && yarn install --frozen-lockfile --prod && zip -rq ${artifact} *.js node_modules && echo artifact built: ${artifact}"
+    }
+}

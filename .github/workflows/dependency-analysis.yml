@@ -188,11 +188,11 @@ jobs:
         run: |
           # Check override
           if [ "${{ vars.OVERRIDE_DEPENDENCY_SCAN }}" == "true" ]; then
-          echo "[DEBUG] - Global scan override enabled"
-          return 0
+            echo "[DEBUG] - Global scan override enabled"
+            return 0
           elif [[ "${{ vars.OVERRIDE_BLACKLIST_COMPLIANCE }}" == "true" ]]; then
-          echo "[DEBUG] - Blacklist scan override enabled"
-          return 0
+            echo "[DEBUG] - Blacklist scan override enabled"
+            return 0
           fi
           
           if [ -f compromised-packages.txt ]; then rm -f compromised-packages.txt; fi
@@ -220,7 +220,7 @@ jobs:
               # ignore empty and commented lines
               [[ -z "${NAME// }" ]] && continue
               [[ "$NAME" =~ ^# ]] && continue
-              #echo "DEBUG To check $NAME $VERSION"
+              echo "DEBUG To check $NAME $VERSION"
 
               case "$manifest_type" in
                 "pnpm-lock.yaml")
