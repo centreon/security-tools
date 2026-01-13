@@ -31,7 +31,6 @@ jobs:
         uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4.1.0
         with:
           version: 10
-          cache: true
 
       - name: Setup Node
         uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
@@ -91,6 +90,7 @@ jobs:
             version_ge() {
               [ "$(printf '%s\n' "$1" "$2" | sort -V | head -n1)" = "$2" ]
             }
+            echo "[DEBUG]: PNPM required version : $LOC_VERSION" 
 
             if version_ge "$MIN_VERSION" "$LOC_VERSION"; then
               message_type "lockfileVersion $LOC_VERSION < $MIN_VERSION"
@@ -135,7 +135,7 @@ jobs:
                   #corepack use pnpm@`pnpm -v`
                   #corepack use pnpm@"$LOC_VERSION"
                   #corepack use pnpm@`pnpm -v`
-                  pnpm dlx pnpm@4 "$LOC_VERSION"
+                  pnpm dlx pnpm@"$LOC_VERSION" install
           
                   pnpm install --frozen-lockfile --safe-chain-logging=verbose
                   #pnpm install --frozen-lockfile                  
