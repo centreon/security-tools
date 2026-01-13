@@ -38,8 +38,6 @@ jobs:
           node-version: 22
           package-manager-cache: true
 
-      # https://github.com/search?q=https%3A%2F%2Fraw.githubusercontent.com%2FAikidoSec%2Fsafe-chain&type=code
-
       - name: Install safe-chain
         #env:
         #  SAFE_CHAIN_VERSION: "1.2.4"
@@ -68,6 +66,8 @@ jobs:
           # Set env
           export SAFE_CHAIN_MINIMUM_PACKAGE_AGE_HOURS=48
           export SAFE_CHAIN_LOGGING="silent"
+          touch "$ERROR_LOG"
+          FORCE_FAIL="false"
           ENFORCEMENT="false"
           if [ "$current_timestamp" -ge "$input_timestamp" ]; then
             echo "[DEBUG]: Deadline passed."
@@ -76,13 +76,14 @@ jobs:
 
           function message_type() {
             if [ $ENFORCEMENT == "true" ]; then
-              echo "[ERROR] : $1"
+              echo "[ERROR] : $1"  >> "$ERROR_LOG"
+              FORCE_FAIL="true"
             else
-              echo "[WARNING] : $1"
+              echo "[WARNING] : $1"  >> "$ERROR_LOG"
             fi
           }
 
-          # Compare pnpm version from lockfile
+          # Compare pnpm version used in lockfile
           function compare_version() {
             MIN_VERSION="10.0.0"
             LOC_VERSION=$(grep -E '^lockfileVersion:' "$LOC_TYPE" \
@@ -92,10 +93,8 @@ jobs:
             version_ge() {
               [ "$(printf '%s\n' "$1" "$2" | sort -V | head -n1)" = "$2" ]
             }
-            echo "[DEBUG]: PNPM required version : $LOC_VERSION" 
-
             if version_ge "$MIN_VERSION" "$LOC_VERSION"; then
-              message_type "lockfileVersion $LOC_VERSION < $MIN_VERSION"
+              message_type "lockfileVersion $LOC_VERSION < $MIN_VERSION in $LOC_FILE"
             fi
           }
 
@@ -105,7 +104,7 @@ jobs:
             cd $MODULE_FOLDER
           fi
 
-          echo "Find manifest files"
+          echo "[INFO] - Find manifest files"
           DEP_FILES=$(find ./ -type f -name "package.json")
 
           # Scan node manifests
@@ -122,42 +121,108 @@ jobs:
               case $LOC_TYPE in
                 "yarn.lock")
                   COUNT=$((COUNT+1))
-                  message_type "Yarn is no longer allowed. Kindly replace the lockfile using PNPM"
+                  message_type "Yarn is no longer allowed. Kindly replace the lockfile using PNPM : $LOC_FILE"
                   ;;
                 "package-lock.json")
                   COUNT=$((COUNT+1))
-                  message_type "NPM is no longer allowed. Kindly replace the lockfile using PNPM"
+                  message_type "NPM is no longer allowed. Kindly replace the lockfile using PNPM : $LOC_FILE"
                   ;;
                 "pnpm-lock.yaml")
-                  #echo "[DEBUG]: pnpm available version" 
-                  #pnpm view pnpm versions
-                  safe-chain --version
                   compare_version
-
-                  #corepack use pnpm@`pnpm -v`
-                  #corepack use pnpm@"$LOC_VERSION"
-                  #corepack use pnpm@`pnpm -v`
                   corepack use pnpm@"$LOC_VERSION"
-                  pnpm -v
-                  #pnpm dlx pnpm@"$LOC_VERSION" install
-
-                  #pnpm install --frozen-lockfile
-                  echo $?
-                  pnpm install --frozen-lockfile --safe-chain-logging=verbose
-                  echo $?
-
+                  pnpm install --frozen-lockfile --safe-chain-logging=info
                   COUNT=$((COUNT+1))
-                  echo "COUNT = $COUNT"
-                  echo $?
                   ;;
                 "*")
-                  message_type "no lockfile found"
+                  message_type "no lockfile found : $LOC_DIR"
                   ;;
               esac
               cd -
             done
             if [[ $COUNT -gt 1 ]]; then
-              message_type "$COUNT lockfiles were found. Kindly keep only the lockfile generated with PNPM"
+              message_type "$COUNT lockfiles were found. Kindly keep only the lockfile generated with PNPM : $LOC_DIR"
             fi
           done
+
+          if [ -s "$ERROR_LOG" ]; then
+            cat "$ERROR_LOG"
+            if [ "FORCE_FAIL" ==  "true" ]; then
+              echo "[FATAL]: Breaking the run."
+              exit 1
+            fi
+          else
+            echo "[INFO] - OK nothing found"
+          fi
+        shell: bash
+
+  dependency-blacklist:
+    name: Run internal dependency script
+    runs-on: ${{ github.repository_visibility != 'public' && 'centreon-security' || 'ubuntu-24.04' }}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Run blacklist scan
+        run: |
+          if [ -f compromised-packages.txt ]; then rm -f compromised-packages.txt; fi
+          wget https://raw.githubusercontent.com/centreon/security-tools/main/blacklist/compromised-packages.txt
+          ERROR_LOG="error_log.txt"
+          DEP_LIST="compromised-packages.txt"
+          LOCKFILES=$(find ./ -name "pnpm-lock.yaml")
+
+          function checkPnpmLockfile() {
+            # Find dependency formated as
+            # "name@version:"
+            if grep -qF "$NAME@$VERSION" "$LOCKFILE"; then
+              echo "$NAME:$VERSION was found in $LOCKFILE"
+              echo "[ERROR] $NAME:$VERSION was found in $LOCKFILE" >> "$ERROR_LOG"
+            else
+                echo -n "."
+            fi
+          }
+
+          function checkManifest() {
+            COUNT=0
+            echo "::info:: Testing manifest $LOCKFILE"
+            manifest_type=$(basename "$LOCKFILE")
+            while IFS=':' read -r NAME VERSION; do
+              # ignore empty and commented lines
+              [[ -z "${NAME// }" ]] && continue
+              [[ "$NAME" =~ ^# ]] && continue
+              #echo "DEBUG To check $NAME $VERSION"
+
+              case "$manifest_type" in
+                "pnpm-lock.yaml")
+                  checkPnpmLockfile
+                  ;;
+                "yarn.lock")
+                  echo "KO dependency manager not allowed"
+                  ;;
+                "package-lock.json")
+                  echo "KO dependency manager not allowed"
+                  ;;
+                "*")
+                  echo "KO manifest not managed"
+                  exit 1
+              esac
+              COUNT=$((COUNT+1))
+            done < "$DEP_LIST"
+            echo "Scanned $COUNT IOC"
+          }
+
+          touch "$ERROR_LOG"
+          for LOCKFILE in "${LOCKFILES[@]}"; do
+            checkManifest "$LOCKFILE"
+          done
+          if [ -s "$ERROR_LOG" ]; then
+            echo -e "[FATAL]: Breaking the run as following dependencies were found:"
+            cat "$ERROR_LOG"
+            exit 1
+          else
+            echo "OK nothing found"
+          fi
+
         shell: bash
