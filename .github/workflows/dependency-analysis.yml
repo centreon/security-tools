@@ -57,14 +57,11 @@ jobs:
             echo "[DEBUG] - PNPM scan override enabled"
             return 0
           fi
-          
+
           # Check date
           current_timestamp=$(date +%s)
           DUE_DATE="${{ vars.OVERRIDE_DEPENDENCY_ENFORCEMENT_DATE }}"
           input_timestamp=$(date -d "$DUE_DATE" +%s)
-          echo "[DEBUG] : DUE_DATE = $DUE_DATE"
-          echo "[DEBUG] : current_timestamp = $current_timestamp"
-          echo "[DEBUG] : input_timestamp = $input_timestamp"
 
           # Set env
           export SAFE_CHAIN_MINIMUM_PACKAGE_AGE_HOURS=76800
@@ -131,6 +128,7 @@ jobs:
                 "pnpm-lock.yaml")
                   compare_version
                   #pnpm install --frozen-lockfile --safe-chain-logging=silent
+                  corepack use pnpm@`pnpm -v`
                   pnpm install --frozen-lockfile
                   #pnpm list --frozen-lockfile
                   #pnpm audit
