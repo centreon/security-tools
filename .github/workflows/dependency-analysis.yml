@@ -65,7 +65,7 @@ jobs:
           input_timestamp=$(date -d "$DUE_DATE" +%s)
 
           # Set env
-          export SAFE_CHAIN_MINIMUM_PACKAGE_AGE_HOURS=76800
+          export SAFE_CHAIN_MINIMUM_PACKAGE_AGE_HOURS=48
           export SAFE_CHAIN_LOGGING="silent"
           ENFORCEMENT="false"
           if [ "$current_timestamp" -ge "$input_timestamp" ]; then
@@ -127,16 +127,18 @@ jobs:
                   message_type "NPM is no longer allowed. Kindly replace the lockfile using PNPM"
                   ;;
                 "pnpm-lock.yaml")
+                  echo "[DEBUG]: pnpm available version" 
+                  pnpm view pnpm versions
                   compare_version
                   safe-chain --version
-                  #corepack use pnpm@`pnpm -v`
-                  corepack use pnpm@"$LOC_VERSION"
-                  pnpm install --frozen-lockfile --safe-chain-logging=verbose
                   
-                  corepack use pnpm@`pnpm -v`
-                  pnpm install --frozen-lockfile
-                  #pnpm list --frozen-lockfile
-                  #pnpm audit
+                  #corepack use pnpm@`pnpm -v`
+                  #corepack use pnpm@"$LOC_VERSION"
+                  #corepack use pnpm@`pnpm -v`
+                  pnpm dlx pnpm@4 "$LOC_VERSION"
+          
+                  pnpm install --frozen-lockfile --safe-chain-logging=verbose
+                  #pnpm install --frozen-lockfile                  
                   ((COUNT++))
                   ;;
                 "*")
