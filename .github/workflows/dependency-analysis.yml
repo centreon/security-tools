@@ -49,7 +49,7 @@ jobs:
 
       - name: Check dependencies and managers
         run: |
-          set -x
+          #set -x
 
           # Check override
           if [ "${{ vars.OVERRIDE_DEPENDENCY_SCAN }}" == "true" ]; then
