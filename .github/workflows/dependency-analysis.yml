@@ -61,7 +61,7 @@ jobs:
       - name: Check dependencies and managers
         run: |
           # Check override
-          if [ "${{ vars.OVERRIDE_DEPENDENCY_SCAN }}" == "true" ]; then
+          if [ "${{ vars.OVERRIDE_ALL_DEPENDENCY_SCAN }}" == "true" ]; then
             echo "[DEBUG] - Global scan override enabled"
             return 0
           elif [[ "${{ vars.OVERRIDE_PNPM_COMPLIANCE }}" == "true" ]]; then
@@ -182,6 +182,15 @@ jobs:
 
       - name: Check for blacklisted dependencies
         run: |
+          # Check override
+          if [ "${{ vars.OVERRIDE_DEPENDENCY_SCAN }}" == "true" ]; then
+          echo "[DEBUG] - Global scan override enabled"
+          return 0
+          elif [[ "${{ vars.OVERRIDE_BLACKLIST_COMPLIANCE }}" == "true" ]]; then
+          echo "[DEBUG] - Blacklist scan override enabled"
+          return 0
+          fi
+          
           if [ -f compromised-packages.txt ]; then rm -f compromised-packages.txt; fi
           wget https://raw.githubusercontent.com/centreon/security-tools/main/blacklist/compromised-packages.txt
           ERROR_LOG="error_log.txt"
