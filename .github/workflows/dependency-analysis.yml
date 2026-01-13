@@ -145,6 +145,7 @@ jobs:
                   pnpm install --frozen-lockfile --safe-chain-logging=verbose
 
                   ((COUNT++))
+                  echo "COUNT = $COUNT"
                   ;;
                 "*")
                   message_type "no lockfile found"
