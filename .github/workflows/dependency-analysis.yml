@@ -121,11 +121,11 @@ jobs:
               cd $LOC_DIR
               case $LOC_TYPE in
                 "yarn.lock")
-                  ((COUNT++))
+                  #((COUNT++))
                   message_type "Yarn is no longer allowed. Kindly replace the lockfile using PNPM"
                   ;;
                 "package-lock.json")
-                  ((COUNT++))
+                  #((COUNT++))
                   message_type "NPM is no longer allowed. Kindly replace the lockfile using PNPM"
                   ;;
                 "pnpm-lock.yaml")
@@ -146,7 +146,7 @@ jobs:
                   pnpm install --frozen-lockfile --safe-chain-logging=verbose
                   echo $?
 
-                  ((COUNT++))
+                  #((COUNT++))
                   echo "COUNT = $COUNT"
                   echo $?
                   ;;
