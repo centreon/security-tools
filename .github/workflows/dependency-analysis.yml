@@ -142,8 +142,8 @@ jobs:
                   compare_version
                   #corepack use pnpm@"$LOC_VERSION"
                   echo "[DEBUG] - check manifests"
-                  cat package.json
-                  cat pnpm-lock.yaml
+                  ll package.json
+                  ll pnpm-lock.yaml
                   echo "[DEBUG] - safe chain" 
                   pnpm install --frozen-lockfile --silent --safe-chain-logging=verbose
                   COUNT=$((COUNT+1))
