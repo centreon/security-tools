@@ -60,8 +60,6 @@ jobs:
 
       - name: Check dependencies and managers
         run: |
-          #set -x
-
           # Check override
           if [ "${{ vars.OVERRIDE_DEPENDENCY_SCAN }}" == "true" ]; then
             echo "[DEBUG] - Global scan override enabled"
@@ -76,10 +74,10 @@ jobs:
           DUE_DATE="${{ vars.OVERRIDE_DEPENDENCY_ENFORCEMENT_DATE }}"
           input_timestamp=$(date -d "$DUE_DATE" +%s)
 
-          # Set env
-          export SAFE_CHAIN_MINIMUM_PACKAGE_AGE_HOURS=48
+          # Setup vars
+          export SAFE_CHAIN_MINIMUM_PACKAGE_AGE_HOURS=${{ env.minimum_package_age_hours }}
           export SAFE_CHAIN_LOGGING="silent"
-          touch "$ERROR_LOG"
+          ERROR_LOG="error_log.txt"
           FORCE_FAIL="false"
           ENFORCEMENT="false"
           if [ "$current_timestamp" -ge "$input_timestamp" ]; then
@@ -111,12 +109,12 @@ jobs:
             fi
           }
 
-          # Move to module folder
+          # Move to module folder and find manifests
           MODULE_FOLDER="${{ inputs.module_directory }}" || ""
           if [[ -n "$MODULE_FOLDER" ]]; then
             cd $MODULE_FOLDER
           fi
-
+          touch "$ERROR_LOG"
           echo "[INFO] - Find manifest files"
           DEP_FILES=$(find ./ -type f -name "package.json")
 
