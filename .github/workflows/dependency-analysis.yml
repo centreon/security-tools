@@ -7,8 +7,8 @@ on:
       module_directory:
         description: 'Component path'
         required: false
-        type: string
         default: ""
+        type: string
 
 permissions:
   contents: read
@@ -97,7 +97,7 @@ jobs:
           }
 
           # Move to module folder
-          if [[ -n ${{ inputs.module_directory }} ]]; then
+          if [[ -n ${{ inputs.module_directory || '' }} ]]; then
             cd ${{ inputs.module_directory }}
           fi
 
