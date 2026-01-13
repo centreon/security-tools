@@ -8,7 +8,7 @@ on:
         description: 'Component path'
         required: false
         type: string
-        default: "."
+        default: ""
 
 permissions:
   contents: read
@@ -49,9 +49,6 @@ jobs:
 
       - name: Check dependencies and managers
         run: |
-          echo "Find manifest files"
-          DEP_FILES=$(find ./ -type f -name "package.json")
-
           # Check override
           if [[ "$VAR_OVERRIDE_DEPENDENCY_SCAN" == "true" ]]; then
             echo "[DEBUG] - Global scan override enabled"
@@ -66,6 +63,9 @@ jobs:
           DUE_DATE="2026-01-31"
           input_timestamp=$(date -d "$DUE_DATE" +%s)
 
+          # Set env
+          export SAFE_CHAIN_MINIMUM_PACKAGE_AGE_HOURS=76800
+          export SAFE_CHAIN_LOGGING="silent"
           ENFORCEMENT="false"
           if [ "$current_timestamp" -ge "$input_timestamp" ]; then
             echo "[DEBUG]: Deadline passed."
@@ -83,24 +83,28 @@ jobs:
           # Compare pnpm version from lockfile
           function compare_version() {
             MIN_VERSION="10.0.0"
-
             LOC_VERSION=$(grep -E '^lockfileVersion:' "$LOC_TYPE" \
             | awk '{print $2}' \
             | tr -d "'\"")
-
             # Compare versions
             version_ge() {
               [ "$(printf '%s\n' "$1" "$2" | sort -V | head -n1)" = "$2" ]
             }
 
             if version_ge "$MIN_VERSION" "$LOC_VERSION"; then
-            message_type "lockfileVersion $LOC_VERSION < $MIN_VERSION"
+              message_type "lockfileVersion $LOC_VERSION < $MIN_VERSION"
             fi
           }
 
+          # Move to module folder
+          if [[ -n ${{ inputs.module_directory }} ]]; then
+            cd ${{ inputs.module_directory }}
+          fi
+
+          echo "Find manifest files"
+          DEP_FILES=$(find ./ -type f -name "package.json")
+
           # Scan node manifests
-          export SAFE_CHAIN_MINIMUM_PACKAGE_AGE_HOURS=76800
-          export SAFE_CHAIN_LOGGING="silent"
           for DEP_FILE in ${DEP_FILES[@]}; do
             DEP_DIR=$(dirname $DEP_FILE)
             echo "[INFO] - Scanning $DEP_FILE"
