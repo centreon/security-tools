@@ -60,6 +60,7 @@ jobs:
 
       - name: Check dependencies and managers
         run: |
+          set +x
           # Check override
           if [ "${{ vars.OVERRIDE_ALL_DEPENDENCY_SCAN }}" == "true" ]; then
             echo "[DEBUG] - Global scan override enabled"
@@ -145,6 +146,7 @@ jobs:
                   ls -la package.json
                   ls -la pnpm-lock.yaml
                   echo "[DEBUG] - safe chain" 
+                  pnpm install --frozen-lockfile --safe-chain-logging=verbose
                   pnpm install --frozen-lockfile --silent --safe-chain-logging=verbose
                   COUNT=$((COUNT+1))
                   ;;
