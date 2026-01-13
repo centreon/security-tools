@@ -39,14 +39,12 @@ jobs:
           package-manager-cache: true
 
       - name: Install safe-chain
-        #env:
-        #  SAFE_CHAIN_VERSION: "1.2.4"
         run: |
           max_retries=5
           retry_delay=5
           
           for ((i=1; i<=max_retries; i++)); do
-            if curl -fsSL https://raw.githubusercontent.com/AikidoSec/safe-chain/main/install-scripts/install-safe-chain.sh | sh -s -- --ci; then
+            if curl -fsSL https://github.com/AikidoSec/safe-chain/releases/latest/download/install-safe-chain.sh | sh -s -- --ci; then
               echo "Success on attempt $i"
               exit 0
             else
