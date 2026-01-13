@@ -62,6 +62,9 @@ jobs:
           current_timestamp=$(date +%s)
           DUE_DATE="${{ vars.OVERRIDE_DEPENDENCY_ENFORCEMENT_DATE }}"
           input_timestamp=$(date -d "$DUE_DATE" +%s)
+          echo "[DEBUG] : DUE_DATE = $DUE_DATE
+          echo "[DEBUG] : current_timestamp = $current_timestamp
+          echo "[DEBUG] : input_timestamp = $input_timestamp
 
           # Set env
           export SAFE_CHAIN_MINIMUM_PACKAGE_AGE_HOURS=76800
