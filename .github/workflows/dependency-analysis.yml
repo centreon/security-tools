@@ -42,7 +42,22 @@ jobs:
         #env:
         #  SAFE_CHAIN_VERSION: "1.2.4"
         run: |
-          curl -fsSL https://raw.githubusercontent.com/AikidoSec/safe-chain/main/install-scripts/install-safe-chain.sh | sh -s -- --ci
+          max_retries=5
+          retry_delay=5
+          
+          for ((i=1; i<=max_retries; i++)); do
+            if curl -fsSL https://raw.githubusercontent.com/AikidoSec/safe-chain/main/install-scripts/install-safe-chain.sh | sh -s -- --ci; then
+              echo "Success on attempt $i"
+              exit 0
+            else
+              echo "Attempt $i failed. Retrying in $retry_delay seconds..."
+              sleep $retry_delay
+            fi
+          done
+          
+          echo "All $max_retries attempts failed."
+          exit 1
+
         shell: bash
 
       - name: Check dependencies and managers
