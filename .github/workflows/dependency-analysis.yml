@@ -150,6 +150,7 @@ jobs:
                   
                   pnpm install --frozen-lockfile --safe-chain-logging=verbose
                   #pnpm install --frozen-lockfile --silent --safe-chain-logging=verbose
+                  #pnpm install --frozen-lockfile --resolution-only --safe-chain-logging=verbose
                   COUNT=$((COUNT+1))
                   ;;
                 "*")
