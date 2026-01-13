@@ -135,7 +135,8 @@ jobs:
                   #corepack use pnpm@`pnpm -v`
                   #corepack use pnpm@"$LOC_VERSION"
                   #corepack use pnpm@`pnpm -v`
-                  pnpm dlx pnpm@"$LOC_VERSION" install
+                  corepack use pnpm@"$LOC_VERSION"
+                  #pnpm dlx pnpm@"$LOC_VERSION" install
           
                   pnpm install --frozen-lockfile --safe-chain-logging=verbose
                   #pnpm install --frozen-lockfile                  
