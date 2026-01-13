@@ -9,11 +9,6 @@ on:
         required: false
         type: string
         default: "."
-#      minimum_package_age_hours:
-#        description: 'Allowed minimum package age'
-#        required: false
-#        type: number
-#        default: 48
 
 permissions:
   contents: read
@@ -52,56 +47,95 @@ jobs:
           curl -fsSL https://raw.githubusercontent.com/AikidoSec/safe-chain/main/install-scripts/install-safe-chain.sh | sh -s -- --ci
         shell: bash
 
-      - name: Check dependencies
+      - name: Check dependencies and managers
         run: |
-          echo "[INFO] - Set min age to ${{ env.minimum_package_age_hours }}"
-          export SAFE_CHAIN_MINIMUM_PACKAGE_AGE_HOURS="${{ env.minimum_package_age_hours }}"
+          echo "Find manifest files"
+          DEP_FILES=$(find ./ -type f -name "package.json")
+
+          # Check override
+          if [[ "$VAR_OVERRIDE_DEPENDENCY_SCAN" == "true" ]]; then
+            echo "[DEBUG] - Global scan override enabled"
+            return 0
+          elif [[ "$VAR_OVERRIDE_PNPM_COMPLIANCE" == "true" ]]; then
+            echo "[DEBUG] - PNPM scan override enabled"
+            return 0
+          fi
           
-          #echo "[INFO] - Install yarn managers"
-          #npm install -g yarn
-          #echo "[INFO] - Current npm version: $(npm -v)"
-          #npm install -g npm@latest
-          #echo "[INFO] - Updated npm version: $(npm -v)"
-          #echo "[DEBUG] - node"
-          #node --version
-          #echo "[DEBUG] - npm"
-          #npm --version
-          #echo "[DEBUG] - yarn"
-          #yarn --version
-          #echo "[DEBUG] - scripts"
-          #ls -laR /home/runner/.safe-chain
+          # Check date
+          current_timestamp=$(date +%s)
+          DUE_DATE="2026-01-31"
+          input_timestamp=$(date -d "$DUE_DATE" +%s)
 
-          MANIFESTS=$(find ./ -type f -name "package-lock.json" -o -name "pnpm-lock.yaml" -o -name "yarn.lock")
-          for MANIFEST in ${MANIFESTS[@]}; do
-            #echo "[INFO] - Scanning $MANIFEST"
-            #LOCATION=$(echo "$MANIFEST" | rev | cut -d/ -f1 --complement | rev)
-            #FILE=$(echo "$MANIFEST" | rev | cut -d/ -f1 | rev)
-            #echo "[DEBUG] - location = $LOCATION"
-            #echo "[DEBUG] - file = $FILE"
-            #cd "$LOCATION"
+          ENFORCEMENT="false"
+          if [ "$current_timestamp" -ge "$input_timestamp" ]; then
+            echo "[DEBUG]: Deadline passed."
+            ENFORCEMENT="true"
+          fi
 
-            echo "[INFO] - Scanning $MANIFEST"
-            #LOCATION=$(echo "$MANIFEST" | rev | cut -d/ -f1 --complement | rev)
-            LOCATION=$(dirname "$MANIFEST")
-            #FILE=$(echo "$MANIFEST" | cut -d/ -f2)
-            FILE=$(basename "$MANIFEST")
-            echo "manifest = $MANIFEST"
-            echo "location = $LOCATION"
-            echo "file = $FILE"
-            cd "$LOCATION"
+          function message_type() {
+            if [[ $ENFORCEMENT == "true" ]]; then
+              echo "[ERROR] : $1"
+            else
+              echo "[WARNING] : $1"
+            fi
+          }
 
-            case "$FILE" in
-              "yarn.lock") yarn install --frozen-lockfile ;;
-              "package-lock.json") npm ci ;;
-              "pnpm-lock.yaml") pnpm install --frozen-lockfile ;;
-              *) echo "dependency manager not managed" ;;
-            esac
-            cd ~-
+          # Compare pnpm version from lockfile
+          function compare_version() {
+            MIN_VERSION="10.0.0"
+
+            LOC_VERSION=$(grep -E '^lockfileVersion:' "$LOC_TYPE" \
+            | awk '{print $2}' \
+            | tr -d "'\"")
+
+            # Compare versions
+            version_ge() {
+              [ "$(printf '%s\n' "$1" "$2" | sort -V | head -n1)" = "$2" ]
+            }
+
+            if version_ge "$MIN_VERSION" "$LOC_VERSION"; then
+            message_type "lockfileVersion $LOC_VERSION < $MIN_VERSION"
+            fi
+          }
+
+          # Scan node manifests
+          export SAFE_CHAIN_MINIMUM_PACKAGE_AGE_HOURS=76800
+          export SAFE_CHAIN_LOGGING="silent"
+          for DEP_FILE in ${DEP_FILES[@]}; do
+            DEP_DIR=$(dirname $DEP_FILE)
+            echo "[INFO] - Scanning $DEP_FILE"
+            LOC_FILES=$(find $DEP_DIR -type f -name "package-lock.json" -o -name "pnpm-lock.yaml" -o -name "yarn.lock")
+            COUNT=0
+
+            for LOC_FILE in ${LOC_FILES[@]}; do
+              LOC_TYPE=$(basename $LOC_FILE)
+              LOC_DIR=$(dirname $LOC_FILE)
+              cd $LOC_DIR
+              case $LOC_TYPE in
+                "yarn.lock")
+                  ((COUNT++))
+                  message_type "Yarn is no longer allowed. Kindly replace the lockfile using PNPM"
+                  ;;
+                "package-lock.json")
+                  ((COUNT++))
+                  message_type "NPM is no longer allowed. Kindly replace the lockfile using PNPM"
+                  ;;
+                "pnpm-lock.yaml")
+                  compare_version
+                  #pnpm install --frozen-lockfile --safe-chain-logging=silent
+                  pnpm install --frozen-lockfile
+                  #pnpm list --frozen-lockfile
+                  #pnpm audit
+                  ((COUNT++))
+                  ;;
+                "*")
+                  message_type "no lockfile found"
+                  ;;
+              esac
+              cd -
+            done
+            if [[ $COUNT -gt 1 ]]; then
+              message_type "$COUNT lockfiles were found. Kindly keep only the lockfile generated with PNPM"
+            fi
           done
         shell: bash
-
-#      - name: New dependency review
-#        uses: actions/dependency-review-action@3c4e3dcb1aa7874d2c16be7d79418e9b7efd6261 # v4.8.2
-#        with:
-#          fail-on-severity: medium
-#          deny-licenses: LGPL-2.0, BSD-2-Clause
