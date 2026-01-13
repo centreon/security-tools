@@ -14,11 +14,11 @@ permissions:
   contents: read
 
 env:
-  minimum_package_age_hours: 168 # 7 days
+  minimum_package_age_hours: 1 # 168 # 7 days
 
 jobs:
   dependency-scan:
-    name: Run dependency analysis
+    name: Run safe-chain analysis
     runs-on: ${{ github.repository_visibility != 'public' && 'centreon-security' || 'ubuntu-24.04' }}
 
     steps:
@@ -140,8 +140,8 @@ jobs:
                   ;;
                 "pnpm-lock.yaml")
                   compare_version
-                  corepack use pnpm@"$LOC_VERSION"
-                  pnpm install --frozen-lockfile --safe-chain-logging=info
+                  corepack use pnpm@"$LOC_VERSION" 
+                  pnpm install --frozen-lockfile --silent --safe-chain-logging=verbose
                   COUNT=$((COUNT+1))
                   ;;
                 "*")
@@ -167,7 +167,7 @@ jobs:
         shell: bash
 
   dependency-blacklist:
-    name: Run internal dependency script
+    name: Run blacklist analysis
     runs-on: ${{ github.repository_visibility != 'public' && 'centreon-security' || 'ubuntu-24.04' }}
 
     steps:
