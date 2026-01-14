@@ -159,6 +159,7 @@ jobs:
                   message_type "NPM is no longer allowed. Kindly replace the lockfile using PNPM : $LOC_FILE"
                   ;;
                 "pnpm-lock.yaml")
+                  echo -e "\n\n"
                   echo "[DEBUG] - pnpm version before compare"
                   pnpm --version
                   echo "[DEBUG] - compare version start"
