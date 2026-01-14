@@ -108,6 +108,9 @@ jobs:
             if version_ge "$MIN_VERSION" "$LOC_VERSION"; then
               message_type "lockfileVersion $LOC_VERSION < $MIN_VERSION in $LOC_FILE"
               if version_ge "6.0" "$LOC_VERSION"; then
+                echo "[DEBUG] - downgrade PNPM version"
+                corepack use pnpm@"$LOC_VERSION"
+                echo "[DEBUG] - add PNPM specific conf"
                 pnpm config set auto-install-peers false
               fi
             fi
@@ -151,7 +154,7 @@ jobs:
 
                   compare_version
 
-                  corepack use pnpm@"$LOC_VERSION"
+                  #corepack use pnpm@"$LOC_VERSION"
                   #corepack install --global pnpm@"$LOC_VERSION"
                   
                   echo "[DEBUG] - pnpm version after compare"
