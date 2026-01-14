@@ -174,7 +174,7 @@ jobs:
                   echo "[DEBUG] - check manifests"
                   ls -la package.json
                   ls -la pnpm-lock.yaml
-                  cat package.json
+                  #cat package.json
                   echo "[DEBUG] - LOC_FILE = $LOC_FILE"
                   echo "[DEBUG] - LOC_DIR = $LOC_DIR"
                   
@@ -184,7 +184,7 @@ jobs:
                   echo "[DEBUG] - get node version
                   pnpm -v
                   
-                  pnpm install --frozen-lockfile --loglevel warn --safe-chain-logging=verbose
+                  pnpm install pnpm-lock.yaml --frozen-lockfile --loglevel warn --safe-chain-logging=verbose
                   #pnpm install --frozen-lockfile --safe-chain-logging=verbose
                   COUNT=$((COUNT+1))
                   ;;
