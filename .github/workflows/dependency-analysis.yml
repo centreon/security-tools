@@ -112,13 +112,13 @@ jobs:
               message_type "lockfileVersion $MANAGER_VERSION < $MIN_VERSION in $LOC_FILE"
 
               if version_ge "$MANAGER_VERSION" "7.1.3"; then
-                echo "[DEBUG] - MANAGER_VERSION is LOWER than 7.1.3"
+                echo "[DEBUG] - MANAGER_VERSION is GREATER than 7.1.3"
                 message_type "lockfileVersion $MANAGER_VERSION < $MIN_VERSION in $LOC_FILE"
                 echo "[DEBUG] - add PNPM specific conf"
-                pnpm config set auto-install-peers false
                 corepack prepare npm@"$MANAGER_VERSION" --activate 1>/dev/null
+                pnpm config set auto-install-peers false
               else
-                echo "[DEBUG] - MANAGER_VERSION is GREATER than 7.1.3"
+                echo "[DEBUG] - MANAGER_VERSION is LOWER than 7.1.3"
                 #corepack prepare npm@"$MANAGER_VERSION" --activate 1>/dev/null
                 corepack use pnpm@"$MANAGER_VERSION" 1>/dev/null
               fi
