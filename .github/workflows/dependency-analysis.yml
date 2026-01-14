@@ -108,6 +108,7 @@ jobs:
             if version_ge "$MIN_VERSION" "$LOC_VERSION"; then
               message_type "lockfileVersion $LOC_VERSION < $MIN_VERSION in $LOC_FILE"
             fi
+            echo "[DEBUG] - LOC_VERSION = $LOC_VERSION"
           }
 
           # Move to module folder and find manifests
@@ -146,9 +147,13 @@ jobs:
                   echo "[DEBUG] - check manifests"
                   ls -la package.json
                   ls -la pnpm-lock.yaml
-                  echo "[DEBUG] - safe chain" 
+                  echo "[DEBUG] - LOC_FILE = $LOC_FILE"
+                  echo "[DEBUG] - LOC_DIR = $LOC_DIR"
                   
-                  pnpm install --frozen-lockfile --safe-chain-logging=verbose
+                  echo "[DEBUG] - safe chain start"
+          
+                  
+                  pnpm install --frozen-lockfile --loglevel warn --safe-chain-logging=verbose
                   #pnpm install --frozen-lockfile --silent --safe-chain-logging=verbose
                   #pnpm install --frozen-lockfile --resolution-only --safe-chain-logging=verbose
                   COUNT=$((COUNT+1))
@@ -162,8 +167,10 @@ jobs:
             if [[ $COUNT -gt 1 ]]; then
               message_type "$COUNT lockfiles were found. Kindly keep only the lockfile generated with PNPM : $LOC_DIR"
             fi
+            echo "[DEBUG] - COUNT = $COUNT"
           done
 
+          echo "[DEBUG] - FORCE_FAIL = $FORCE_FAIL"
           if [ -s "$ERROR_LOG" ]; then
             cat "$ERROR_LOG"
             if [ "FORCE_FAIL" ==  "true" ]; then
