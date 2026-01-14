@@ -147,7 +147,10 @@ jobs:
 
                   compare_version
 
-                  corepack prepare pnpm@"$LOC_VERSION" --activate
+                  #corepack use pnpm@"$LOC_VERSION"
+                  corepack install --global pnpm@"$LOC_VERSION"
+                  
+                  
                   echo "[DEBUG] - pnpm version after compare"
                   pnpm --version
                   
@@ -210,12 +213,6 @@ jobs:
             return 0
           fi
           
-          if [ -f compromised-packages.txt ]; then rm -f compromised-packages.txt; fi
-          wget https://raw.githubusercontent.com/centreon/security-tools/main/blacklist/compromised-packages.txt
-          ERROR_LOG="error_log.txt"
-          DEP_LIST="compromised-packages.txt"
-          LOCKFILES=$(find ./ -name "pnpm-lock.yaml")
-
           function checkPnpmLockfile() {
             # Find dependency formated as
             # "name@version:"
@@ -223,7 +220,7 @@ jobs:
               echo "$NAME:$VERSION was found in $LOCKFILE"
               echo "[ERROR] $NAME:$VERSION was found in $LOCKFILE" >> "$ERROR_LOG"
             else
-                echo -n "."
+              echo -n "."
             fi
           }
 
@@ -256,7 +253,13 @@ jobs:
             echo "[INFO] - Scanned $COUNT IOC"
           }
 
+          if [ -f compromised-packages.txt ]; then rm -f compromised-packages.txt; fi
+          wget https://raw.githubusercontent.com/centreon/security-tools/main/blacklist/compromised-packages.txt
+          ERROR_LOG="error_log.txt"
           touch "$ERROR_LOG"
+          DEP_LIST="compromised-packages.txt"
+          LOCKFILES=$(find ./ -type f -name "pnpm-lock.yaml")
+          
           for LOCKFILE in "${LOCKFILES[@]}"; do
             checkManifest "$LOCKFILE"
           done
