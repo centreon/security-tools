@@ -179,9 +179,9 @@ jobs:
                   echo "[DEBUG] - LOC_DIR = $LOC_DIR"
                   
                   echo "[DEBUG] - safe chain start"
-                  echo "[DEBUG] - get pnpm version
+                  echo "[DEBUG] - get pnpm version"
                   node -v
-                  echo "[DEBUG] - get node version
+                  echo "[DEBUG] - get node version"
                   pnpm -v
                   
                   pnpm install --frozen-lockfile --loglevel warn --safe-chain-logging=verbose
