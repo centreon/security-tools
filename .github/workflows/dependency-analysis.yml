@@ -118,14 +118,14 @@ jobs:
           fi
           touch "$ERROR_LOG"
           echo "[INFO] - Find manifest files"
-          DEP_FILES=$(find ./ -type f -name "package.json")
+          DEP_FILES=($(find ./ -type f -name "package.json"))
 
           # Scan node manifests
           for DEP_FILE in ${DEP_FILES[@]}; do
             DEP_DIR=$(dirname $DEP_FILE)
             echo "[INFO] - Scanning $DEP_FILE"
             echo "[DEBUG] - DEP_FILE = $DEP_FILE"
-            LOC_FILES=$(find $DEP_DIR -type f -name "package-lock.json" -o -name "pnpm-lock.yaml" -o -name "yarn.lock")
+            LOC_FILES=($(find $DEP_DIR -type f -name "package-lock.json" -o -name "pnpm-lock.yaml" -o -name "yarn.lock"))
             COUNT=0
 
             for LOC_FILE in ${LOC_FILES[@]}; do
@@ -255,7 +255,7 @@ jobs:
 
           DEP_LIST="compromised-packages.txt"
           if [ -f "$DEP_LIST" ]; then rm -f "$DEP_LIST"; fi
-          wget https://raw.githubusercontent.com/centreon/security-tools/SECU-dependency-review/blacklist/"$DEP_LIST"
+          wget https://raw.githubusercontent.com/centreon/security-tools/main/blacklist/"$DEP_LIST"
           
           ERROR_LOG="error_log.txt"
           touch "$ERROR_LOG"
@@ -265,7 +265,7 @@ jobs:
             checkManifest "$LOCKFILE"
           done
           if [ -s "$ERROR_LOG" ]; then
-            echo -e "[FATAL]: Breaking the run as following ERRORS were found:"
+            echo -e "[ERROR]: Breaking the run as following ERRORS were found:"
             cat "$ERROR_LOG"
             exit 1
           else
