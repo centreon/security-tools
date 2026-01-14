@@ -124,6 +124,7 @@ jobs:
           for DEP_FILE in ${DEP_FILES[@]}; do
             DEP_DIR=$(dirname $DEP_FILE)
             echo "[INFO] - Scanning $DEP_FILE"
+            echo "[DEBUG] - DEP_FILE = $DEP_FILE"
             LOC_FILES=$(find $DEP_DIR -type f -name "package-lock.json" -o -name "pnpm-lock.yaml" -o -name "yarn.lock")
             COUNT=0
 
@@ -141,8 +142,14 @@ jobs:
                   message_type "NPM is no longer allowed. Kindly replace the lockfile using PNPM : $LOC_FILE"
                   ;;
                 "pnpm-lock.yaml")
+                  echo "[DEBUG] - pnpm version before compare"
+                  pnpm --version
+
                   compare_version
-                  corepack use pnpm@"$LOC_VERSION"
+
+                  corepack prepare pnpm@"$LOC_VERSION" --activate
+                  echo "[DEBUG] - pnpm version after compare"
+                  pnpm --version
                   
                   echo "[DEBUG] - check manifests"
                   ls -la package.json
@@ -228,7 +235,6 @@ jobs:
               # ignore empty and commented lines
               [[ -z "${NAME// }" ]] && continue
               [[ "$NAME" =~ ^# ]] && continue
-              echo "DEBUG To check $NAME $VERSION"
 
               case "$manifest_type" in
                 "pnpm-lock.yaml")
@@ -244,9 +250,10 @@ jobs:
                   echo "KO manifest not managed"
                   exit 1
               esac
+
               COUNT=$((COUNT+1))
             done < "$DEP_LIST"
-            echo "Scanned $COUNT IOC"
+            echo "[INFO] - Scanned $COUNT IOC"
           }
 
           touch "$ERROR_LOG"
