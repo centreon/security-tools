@@ -107,7 +107,9 @@ jobs:
             }
             if version_ge "$MIN_VERSION" "$LOC_VERSION"; then
               message_type "lockfileVersion $LOC_VERSION < $MIN_VERSION in $LOC_FILE"
-              pnpm config set auto-install-peers false
+              if version_ge "6.0" "$LOC_VERSION"; then
+                pnpm config set auto-install-peers false
+              fi
             fi
             echo "[DEBUG] - LOC_VERSION = $LOC_VERSION"
           }
