@@ -109,6 +109,8 @@ jobs:
               message_type "lockfileVersion $LOC_VERSION < $MIN_VERSION in $LOC_FILE"
               echo "[DEBUG] - LOC-VERSION = $LOC_VERSION"
           
+              echo "[DEBUG] - corepack version"
+              corepack -v
               #echo "[DEBUG] - downgrade PNPM version"
               
               if version_ge "$LOC_VERSION" "7.1.3"; then
