@@ -120,7 +120,8 @@ jobs:
                 pnpm config set auto-install-peers false
               else
                 #echo "[DEBUG] - MAX_VERSION is lower than 7.1.3"
-                corepack use pnpm@"$LOC_VERSION" 1>/dev/null
+                corepack prepare npm@"$LOC_VERSION" --activate 1>/dev/null
+                #corepack use pnpm@"$LOC_VERSION" 1>/dev/null
 
               fi
             fi
