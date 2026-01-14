@@ -112,6 +112,9 @@ jobs:
               #echo "[DEBUG] - downgrade PNPM version"
               corepack use pnpm@"$LOC_VERSION"
               if version_ge "$LOC_VERSION" "7.1.3"; then
+                message_type "lockfileVersion $LOC_VERSION < $MIN_VERSION in $LOC_FILE"
+                echo "[DEBUG] - LOC_VERSIOn = $LOC_VERSION"
+                echo "[DEBUG] - MAX_VERSION = 7.1.3"
                 echo "[DEBUG] - add PNPM specific conf"
                 pnpm config list
                 pnpm config set auto-install-peers false
