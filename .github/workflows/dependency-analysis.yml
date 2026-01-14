@@ -107,6 +107,7 @@ jobs:
             }
             if version_ge "$MIN_VERSION" "$LOC_VERSION"; then
               message_type "lockfileVersion $LOC_VERSION < $MIN_VERSION in $LOC_FILE"
+              pnpm config set auto-install-peers false
             fi
             echo "[DEBUG] - LOC_VERSION = $LOC_VERSION"
           }
@@ -144,6 +145,7 @@ jobs:
                 "pnpm-lock.yaml")
                   echo "[DEBUG] - pnpm version before compare"
                   pnpm --version
+                  pnpm config list
 
                   compare_version
 
@@ -152,6 +154,7 @@ jobs:
                   
                   echo "[DEBUG] - pnpm version after compare"
                   pnpm --version
+                  pnpm config list
                   
                   echo "[DEBUG] - check manifests"
                   ls -la package.json
@@ -163,7 +166,7 @@ jobs:
                   echo "[DEBUG] - safe chain start"
           
                   
-                  pnpm install --frozen-lockfile --config.auto-install-peers=false --loglevel warn --safe-chain-logging=verbose
+                  pnpm install --frozen-lockfile --loglevel warn --safe-chain-logging=verbose
                   #pnpm install --frozen-lockfile --silent --safe-chain-logging=verbose
                   #pnpm install --frozen-lockfile --resolution-only --safe-chain-logging=verbose
                   COUNT=$((COUNT+1))
