@@ -115,21 +115,17 @@ jobs:
               
               if version_ge "$LOC_VERSION" "7.1.3"; then
                 message_type "lockfileVersion $LOC_VERSION < $MIN_VERSION in $LOC_FILE"
-                echo "[DEBUG] - LOC_VERSION = $LOC_VERSION"
                 echo "[DEBUG] - MAX_VERSION = 7.1.3"
                 echo "[DEBUG] - add PNPM specific conf"
-                corepack prepare npm@$"LOC_VERSION" --activate
+                corepack prepare npm@$"LOC_VERSION" --activate /dev/null 2>&1
                 pnpm config list
                 pnpm config set auto-install-peers false
               else
-                echo "[DEBUG] - LOC_VERSION = $LOC_VERSION"
-                echo "[DEBUG] - MAX_vERSION is under 7.1.3"
-                corepack use pnpm@"$LOC_VERSION"
-          
-              
+                echo "[DEBUG] - MAX_vERSION is upper 7.1.3"
+                corepack use pnpm@"$LOC_VERSION" /dev/null 2>&1
+
               fi
             fi
-            echo "[DEBUG] - LOC_VERSION = $LOC_VERSION"
           }
 
           # Move to module folder and find manifests
@@ -187,11 +183,13 @@ jobs:
                   echo "[DEBUG] - LOC_DIR = $LOC_DIR"
                   
                   echo "[DEBUG] - safe chain start"
-          
+                  echo "[DEBUG] - get pnpm version
+                  node -v
+                  echo "[DEBUG] - get node version
+                  pnpm -v
                   
                   pnpm install --frozen-lockfile --loglevel warn --safe-chain-logging=verbose
-                  #pnpm install --frozen-lockfile --silent --safe-chain-logging=verbose
-                  #pnpm install --frozen-lockfile --resolution-only --safe-chain-logging=verbose
+                  #pnpm install --frozen-lockfile --safe-chain-logging=verbose
                   COUNT=$((COUNT+1))
                   ;;
                 "*")
