@@ -185,7 +185,7 @@ jobs:
                   echo "[DEBUG] - get node version
                   pnpm -v
                   
-                  pnpm install pnpm-lock.yaml --frozen-lockfile --loglevel warn --safe-chain-logging=verbose
+                  pnpm install --frozen-lockfile --loglevel warn --safe-chain-logging=verbose
                   #pnpm install --frozen-lockfile --safe-chain-logging=verbose
                   COUNT=$((COUNT+1))
                   ;;
