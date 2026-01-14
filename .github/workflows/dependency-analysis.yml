@@ -218,7 +218,7 @@ jobs:
             # "name@version:"
             if grep -qF "$NAME@$VERSION" "$LOCKFILE"; then
               echo "$NAME:$VERSION was found in $LOCKFILE"
-              echo "[ERROR] $NAME:$VERSION was found in $LOCKFILE" >> "$ERROR_LOG"
+              echo "[ERROR] - $NAME:$VERSION was found in $LOCKFILE" >> "$ERROR_LOG"
             else
               echo -n "."
             fi
@@ -228,6 +228,7 @@ jobs:
             COUNT=0
             echo "[INFO] - Testing manifest $LOCKFILE"
             manifest_type=$(basename "$LOCKFILE")
+
             while IFS=':' read -r NAME VERSION; do
               # ignore empty and commented lines
               [[ -z "${NAME// }" ]] && continue
@@ -238,14 +239,13 @@ jobs:
                   checkPnpmLockfile
                   ;;
                 "yarn.lock")
-                  echo "KO dependency manager not allowed"
+                  echo "[ERROR] - dependency manager not allowed. Found in $LOCKFILE" >> "$ERROR_LOG"
                   ;;
                 "package-lock.json")
-                  echo "KO dependency manager not allowed"
+                  echo "[ERROR] - dependency manager not allowed. Found in $LOCKFILE" >> "$ERROR_LOG"
                   ;;
                 "*")
-                  echo "KO manifest not managed"
-                  exit 1
+                  echo "[ERROR] - dependency manager not managed. Found in $LOCKFILE" >> "$ERROR_LOG"
               esac
 
               COUNT=$((COUNT+1))
@@ -253,22 +253,23 @@ jobs:
             echo "[INFO] - Scanned $COUNT IOC"
           }
 
-          if [ -f compromised-packages.txt ]; then rm -f compromised-packages.txt; fi
-          wget https://raw.githubusercontent.com/centreon/security-tools/main/blacklist/compromised-packages.txt
+          DEP_LIST="compromised-packages.txt"
+          if [ -f "$DEP_LIST" ]; then rm -f "$DEP_LIST"; fi
+          wget https://raw.githubusercontent.com/centreon/security-tools/main/blacklist/"$DEP_LIST"
+          
           ERROR_LOG="error_log.txt"
           touch "$ERROR_LOG"
-          DEP_LIST="compromised-packages.txt"
-          LOCKFILES=$(find ./ -type f -name "pnpm-lock.yaml")
+          LOCKFILES=($(find ./ -type f -name "pnpm-lock.yaml"))
           
           for LOCKFILE in "${LOCKFILES[@]}"; do
             checkManifest "$LOCKFILE"
           done
           if [ -s "$ERROR_LOG" ]; then
-            echo -e "[FATAL]: Breaking the run as following dependencies were found:"
+            echo -e "[FATAL]: Breaking the run as following ERRORS were found:"
             cat "$ERROR_LOG"
             exit 1
           else
-            echo "OK nothing found"
+            echo "[INFO] - OK nothing found"
           fi
 
         shell: bash
