@@ -163,7 +163,7 @@ jobs:
                   echo "[DEBUG] - safe chain start"
           
                   
-                  pnpm install --frozen-lockfile --auto-install-peers false --loglevel warn --safe-chain-logging=verbose
+                  pnpm install --frozen-lockfile --config.auto-install-peers=false --loglevel warn --safe-chain-logging=verbose
                   #pnpm install --frozen-lockfile --silent --safe-chain-logging=verbose
                   #pnpm install --frozen-lockfile --resolution-only --safe-chain-logging=verbose
                   COUNT=$((COUNT+1))
