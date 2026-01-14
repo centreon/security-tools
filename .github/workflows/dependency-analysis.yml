@@ -255,7 +255,7 @@ jobs:
 
           DEP_LIST="compromised-packages.txt"
           if [ -f "$DEP_LIST" ]; then rm -f "$DEP_LIST"; fi
-          wget https://raw.githubusercontent.com/centreon/security-tools/main/blacklist/"$DEP_LIST"
+          wget https://raw.githubusercontent.com/centreon/security-tools/SECU-dependency-review/blacklist/"$DEP_LIST"
           
           ERROR_LOG="error_log.txt"
           touch "$ERROR_LOG"
