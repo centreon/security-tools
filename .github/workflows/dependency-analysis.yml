@@ -117,9 +117,9 @@ jobs:
             if version_ge "$MIN_LOCKFILE_VERSION" "$LOCKFILE_VERSION"; then
               echo "[DEBUG] - 1 - LOCKFILE_VERSION is lower than $MIN_LOCKFILE_VERSION"
               message_type "lockfileVersion $LOCKFILE_VERSION < $MIN_LOCKFILE_VERSION in $LOC_FILE"
-              SKIP="true"
             else
               echo "[DEBUG] - 1 - LOCKFILE_VERSION is greater or equal to $MIN_LOCKFILE_VERSION"
+              SKIP="true"
             fi
             echo "[DEBUG] - SKIP in compare = $SKIP"
           }
@@ -193,7 +193,7 @@ jobs:
           else
             echo "[INFO] - OK nothing found"
           fi
-          echo "[DEBUG] - ERROR_LOG :"
+          echo -e "\n\n[DEBUG] - ERROR_LOG :"
           cat $ERROR_LOG
         shell: bash
 
