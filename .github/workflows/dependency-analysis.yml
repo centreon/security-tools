@@ -111,7 +111,7 @@ jobs:
             for LOC_FILE in ${LOC_FILES[@]}; do
               LOC_TYPE=$(basename $LOC_FILE)
               LOC_DIR=$(dirname $LOC_FILE)
-              cd $LOC_DIR
+              #cd $LOC_DIR
               case $LOC_TYPE in
                 "yarn.lock")
                   COUNT=$((COUNT+1))
@@ -132,7 +132,7 @@ jobs:
                   message_type "no lockfile found in $LOC_DIR"
                   ;;
               esac
-              cd -
+              #cd -
             done
             if [[ $COUNT -gt 1 ]]; then
               message_type "$COUNT lockfiles were found. Kindly keep only the lockfile generated with PNPM : $LOC_DIR"
