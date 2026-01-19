@@ -114,12 +114,8 @@ jobs:
               if version_ge "$LOCKFILE_VERSION" "7.1.3"; then
                 echo "[DEBUG] - 2 - LOCKFILE_VERSION is GREATER than 7.1.3"
                 message_type "lockfileVersion $LOCKFILE_VERSION < $MIN_LOCKFILE_VERSION in $LOC_FILE"
-                #corepack prepare npm@"$LOCKFILE_VERSION" --activate 1>/dev/null
-                #pnpm config set auto-install-peers false
               else
                 echo "[DEBUG] - 3 - LOCKFILE_VERSION is LOWER than 7.1.3"
-                #corepack prepare npm@"$LOCKFILE_VERSION" --activate 1>/dev/null
-                #corepack use pnpm@"$LOCKFILE_VERSION" 1>/dev/null
               fi
             fi
             echo "[DEBUG] - pnpm version after compare"
@@ -158,29 +154,19 @@ jobs:
                   ;;
                 "pnpm-lock.yaml")
                   echo -e "\n\n"
-                  echo "[DEBUG] - pnpm version before compare"
-                  pnpm --version
-                  echo "[DEBUG] - compare version start"
-                  compare_version
-
-                  #corepack use pnpm@"$LOCKFILE_VERSION"
-                  #corepack install --global pnpm@"$LOCKFILE_VERSION"
-                  
-                  echo "[DEBUG] - pnpm version after compare - double check"
-                  pnpm --version
-
-                  
-                  echo "[DEBUG] - check manifests"
-                  ls -la package.json
-                  ls -la pnpm-lock.yaml
-                  #cat package.json
-                  echo "[DEBUG] - LOC_FILE = $LOC_FILE"
-                  
-                  echo "[DEBUG] - safe chain start"
                   echo "[DEBUG] - get pnpm version"
                   node -v
                   echo "[DEBUG] - get node version"
                   pnpm -v
+                  echo "[DEBUG] - compare version start"
+                  compare_version
+                  
+                  echo "[DEBUG] - check manifests"
+                  ls -la package.json
+                  ls -la pnpm-lock.yaml
+                  echo "[DEBUG] - LOC_FILE = $LOC_FILE"
+                  
+                  echo "[DEBUG] - safe chain start"
                   
                   pnpm install --frozen-lockfile --loglevel warn --safe-chain-logging=verbose
                   #pnpm install --frozen-lockfile --safe-chain-logging=verbose
