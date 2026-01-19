@@ -111,12 +111,15 @@ jobs:
             }
 
             echo "[DEBUG] - 0 - before condition LOCKFILE_VERSION = $LOCKFILE_VERSION"
+            echo "[DEBUG] - 0 - before condition MIN_LOCKFILE_VERSION = $MIN_LOCKFILE_VERSION"
+          
             if version_ge "$MIN_LOCKFILE_VERSION" "$LOCKFILE_VERSION"; then
               echo "[DEBUG] - 1 - LOCKFILE_VERSION is lower than $MIN_LOCKFILE_VERSION"
-              echo "[DEBUG] - 1b - Analysis skipped"
               message_type "lockfileVersion $LOCKFILE_VERSION < $MIN_LOCKFILE_VERSION in $LOC_FILE"
               SKIP="true"
-            fi
+            else
+              echo "[DEBUG] - 1 - LOCKFILE_VERSION is greater or equal to $MIN_LOCKFILE_VERSION"
+              fi
           }
 
           # Move to module folder and find manifests
@@ -140,7 +143,6 @@ jobs:
               LOC_TYPE=$(basename $LOC_FILE)
               LOC_DIR=$(dirname $LOC_FILE)
               cd $LOC_DIR
-              echo -e "\n\n"
               case $LOC_TYPE in
                 "yarn.lock")
                   COUNT=$((COUNT+1))
@@ -192,6 +194,8 @@ jobs:
           else
             echo "[INFO] - OK nothing found"
           fi
+          echo "[DEBUG] - ERROR_LOG :"
+          cat $ERROR_LOG
         shell: bash
 
   dependency-blacklist:
