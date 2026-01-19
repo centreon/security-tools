@@ -140,6 +140,7 @@ jobs:
               LOC_TYPE=$(basename $LOC_FILE)
               LOC_DIR=$(dirname $LOC_FILE)
               cd $LOC_DIR
+              echo -e "\n\n"
               case $LOC_TYPE in
                 "yarn.lock")
                   COUNT=$((COUNT+1))
@@ -150,7 +151,6 @@ jobs:
                   message_type "NPM is no longer allowed. Kindly replace the lockfile using PNPM : $LOC_FILE"
                   ;;
                 "pnpm-lock.yaml")
-                  echo -e "\n\n"
                   echo "[DEBUG] - get pnpm version"
                   pnpm -v
                   echo "[DEBUG] - get node version"
