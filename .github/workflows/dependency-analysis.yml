@@ -18,7 +18,7 @@ env:
 
 jobs:
   dependency-scan:
-    name: Run safe-chain analysis
+    name: Run PNPM usage analysis
     runs-on: ${{ github.repository_visibility != 'public' && 'centreon-security' || 'ubuntu-24.04' }}
 
     steps:
@@ -27,40 +27,8 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup Pnpm
-        uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4.1.0
-        with:
-          version: 10
-
-      - name: Setup Node
-        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
-        with:
-          node-version: 22
-          package-manager-cache: true
-
-      - name: Install safe-chain
+      - name: Check dependencies type and managers version
         run: |
-          max_retries=5
-          retry_delay=5
-          
-          for ((i=1; i<=max_retries; i++)); do
-            if curl -fsSL https://github.com/AikidoSec/safe-chain/releases/latest/download/install-safe-chain.sh | sh -s -- --ci; then
-              echo "Success on attempt $i"
-              exit 0
-            else
-              echo "Attempt $i failed. Retrying in $retry_delay seconds..."
-              sleep $retry_delay
-            fi
-          done
-          
-          echo "All $max_retries attempts failed."
-          exit 1
-
-        shell: bash
-
-      - name: Check dependencies and managers
-        run: |
-          set +x
           # Check override
           if [ "${{ vars.OVERRIDE_ALL_DEPENDENCY_SCAN }}" == "true" ]; then
             echo "[DEBUG] - Global scan override enabled"
@@ -76,8 +44,6 @@ jobs:
           input_timestamp=$(date -d "$DUE_DATE" +%s)
 
           # Setup vars
-          export SAFE_CHAIN_MINIMUM_PACKAGE_AGE_HOURS=${{ env.minimum_package_age_hours }}
-          export SAFE_CHAIN_LOGGING="silent"
           ERROR_LOG="error_log.txt"
           touch "$ERROR_LOG"
           FORCE_FAIL="false"
@@ -97,6 +63,7 @@ jobs:
               echo "[WARNING] : $1"
               echo "[WARNING] : $1"  >> "$ERROR_LOG"
             fi
+            cat "$ERROR_LOG"
           }
 
           # Compare pnpm version used in lockfile
@@ -111,8 +78,7 @@ jobs:
               [ "$(printf '%s\n' "$1" "$2" | sort -V | head -n1)" = "$2" ]
             }
 
-            echo "[DEBUG] - 0 - before condition LOCKFILE_VERSION = $LOCKFILE_VERSION"
-            echo "[DEBUG] - 0 - before condition MIN_LOCKFILE_VERSION = $MIN_LOCKFILE_VERSION"
+            echo "[DEBUG] - 0 - before condition LOCKFILE_VERSION = $LOCKFILE_VERSION / MIN_LOCKFILE_VERSION = $MIN_LOCKFILE_VERSION"
           
             if version_ge "$MIN_LOCKFILE_VERSION" "$LOCKFILE_VERSION"; then
               echo "[DEBUG] - 1 - LOCKFILE_VERSION is lower than $MIN_LOCKFILE_VERSION"
@@ -129,7 +95,7 @@ jobs:
           if [[ -n "$MODULE_FOLDER" ]]; then
             cd $MODULE_FOLDER
           fi
-          
+
           echo "[INFO] - Find manifest files"
           DEP_FILES=($(find ./ -type f -name "package.json"))
 
@@ -159,16 +125,6 @@ jobs:
                   SKIP=$(compare_version)
                   echo "[DEBUG] - SKIP = $SKIP"
                   if [ "$SKIP" == "true" ] ; then continue; fi 
-
-                  echo "[DEBUG] - check manifests"
-                  ls -la package.json
-                  ls -la pnpm-lock.yaml
-
-                  #echo "[DEBUG] - safe chain start"
-                  #echo "[DEBUG] - LOC_FILE = $LOC_FILE"
-                  #pnpm install --frozen-lockfile --loglevel warn --safe-chain-logging=verbose
-                  #pnpm install --frozen-lockfile --safe-chain-logging=verbose
-          
                   COUNT=$((COUNT+1))
                   ;;
                 "*")
