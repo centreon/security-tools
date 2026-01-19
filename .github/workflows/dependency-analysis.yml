@@ -149,7 +149,7 @@ jobs:
                 "pnpm-lock.yaml")
                   echo -e "\n\n"
                   echo "[DEBUG] - get pnpm version"
-                  pnode -v
+                  node -v
                   echo "[DEBUG] - get node version"
                   node -v
                   echo "[DEBUG] - compare version start"
