@@ -64,7 +64,6 @@ jobs:
               echo "[WARNING] : $MSG"
               echo "[WARNING] : $MSG" >> "$ERROR_LOG"
             fi
-            cat "$ERROR_LOG"
           }
 
           # Compare pnpm version used in lockfile
