@@ -103,14 +103,14 @@ jobs:
             SKIP="false"
             MIN_LOCKFILE_VERSION="9.0.0"
             LOCKFILE_VERSION=$(grep -E '^lockfileVersion:' "$LOC_TYPE" \
-            | awk '{print $2}' \
-            | tr -d "'\"")
+              | awk '{print $2}' \
+              | tr -d "'\"")
             # Compare versions
             version_ge() {
               [ "$(printf '%s\n' "$1" "$2" | sort -V | head -n1)" = "$2" ]
             }
 
-            echo "[DEBUG] - 0 - before condition LOC-VERSION = $LOCKFILE_VERSION"
+            echo "[DEBUG] - 0 - before condition LOCKFILE_VERSION = $LOCKFILE_VERSION"
             if version_ge "$MIN_LOCKFILE_VERSION" "$LOCKFILE_VERSION"; then
               echo "[DEBUG] - 1 - LOCKFILE_VERSION is lower than $MIN_LOCKFILE_VERSION"
               echo "[DEBUG] - 1b - Analysis skipped"
