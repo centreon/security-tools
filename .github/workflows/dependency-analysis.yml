@@ -79,6 +79,7 @@ jobs:
           export SAFE_CHAIN_MINIMUM_PACKAGE_AGE_HOURS=${{ env.minimum_package_age_hours }}
           export SAFE_CHAIN_LOGGING="silent"
           ERROR_LOG="error_log.txt"
+          touch "$ERROR_LOG"
           FORCE_FAIL="false"
           ENFORCEMENT="false"
           SKIP="false"
@@ -90,11 +91,11 @@ jobs:
           function message_type() {
             if [ $ENFORCEMENT == "true" ]; then
               echo "[ERROR] : $1"
-              echo "[ERROR] : $1"  > "$ERROR_LOG"
+              echo "[ERROR] : $1"  >> "$ERROR_LOG"
               FORCE_FAIL="true"
             else
               echo "[WARNING] : $1"
-              echo "[WARNING] : $1"  > "$ERROR_LOG"
+              echo "[WARNING] : $1"  >> "$ERROR_LOG"
             fi
           }
 
@@ -119,7 +120,8 @@ jobs:
               SKIP="true"
             else
               echo "[DEBUG] - 1 - LOCKFILE_VERSION is greater or equal to $MIN_LOCKFILE_VERSION"
-              fi
+            fi
+            return $SKIP
           }
 
           # Move to module folder and find manifests
@@ -127,7 +129,7 @@ jobs:
           if [[ -n "$MODULE_FOLDER" ]]; then
             cd $MODULE_FOLDER
           fi
-          touch "$ERROR_LOG"
+          
           echo "[INFO] - Find manifest files"
           DEP_FILES=($(find ./ -type f -name "package.json"))
 
