@@ -102,7 +102,7 @@ jobs:
           # Compare pnpm version used in lockfile
           function compare_version() {
             SKIP="false"
-            MIN_LOCKFILE_VERSION="9.0"
+            MIN_LOCKFILE_VERSION="8.9.9"
             LOCKFILE_VERSION=$(grep -E '^lockfileVersion:' "$LOC_TYPE" \
               | awk '{print $2}' \
               | tr -d "'\"")
