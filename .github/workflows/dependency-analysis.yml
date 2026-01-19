@@ -121,7 +121,7 @@ jobs:
             else
               echo "[DEBUG] - 1 - LOCKFILE_VERSION is greater or equal to $MIN_LOCKFILE_VERSION"
             fi
-            return $SKIP
+            echo "[DEBUG] - SKIP in compare = $SKIP"
           }
 
           # Move to module folder and find manifests
