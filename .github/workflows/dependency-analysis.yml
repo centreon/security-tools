@@ -97,6 +97,7 @@ jobs:
 
           # Compare pnpm version used in lockfile
           function compare_version() {
+            SKIP="false"
             MIN_LOCKFILE_VERSION="9.0.0"
             LOCKFILE_VERSION=$(grep -E '^lockfileVersion:' "$LOC_TYPE" \
             | awk '{print $2}' \
@@ -111,6 +112,7 @@ jobs:
               echo "[DEBUG] - 1 - LOCKFILE_VERSION is lower than $MIN_LOCKFILE_VERSION"
               echo "[DEBUG] - 1b - Analysis skipped"
               message_type "lockfileVersion $LOCKFILE_VERSION < $MIN_LOCKFILE_VERSION in $LOC_FILE"
+              SKIP="true"
             fi
           }
 
@@ -152,7 +154,7 @@ jobs:
                   node -v
                   echo "[DEBUG] - compare version start"
                   local skip=$(compare_version)
-                  if [ "$skip" == "true" ] ; then continue; fi 
+                  if [ "$SKIP" == "true" ] ; then continue; fi 
                   
                   echo "[DEBUG] - check manifests"
                   ls -la package.json
