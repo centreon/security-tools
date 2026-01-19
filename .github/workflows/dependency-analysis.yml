@@ -89,9 +89,11 @@ jobs:
 
           function message_type() {
             if [ $ENFORCEMENT == "true" ]; then
+              echo "[ERROR] : $1"
               echo "[ERROR] : $1"  >> "$ERROR_LOG"
               FORCE_FAIL="true"
             else
+              echo "[WARNING] : $1"
               echo "[WARNING] : $1"  >> "$ERROR_LOG"
             fi
           }
