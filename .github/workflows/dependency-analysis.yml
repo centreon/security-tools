@@ -97,8 +97,8 @@ jobs:
 
           # Compare pnpm version used in lockfile
           function compare_version() {
-            MIN_VERSION="10.0.0"
-            MANAGER_VER=$(grep -E '^lockfileVersion:' "$LOC_TYPE" \
+            MIN_LOCKFILE_VERSION="9.0.0"
+            LOCKFILE_VERSION=$(grep -E '^lockfileVersion:' "$LOC_TYPE" \
             | awk '{print $2}' \
             | tr -d "'\"")
             # Compare versions
@@ -106,21 +106,20 @@ jobs:
               [ "$(printf '%s\n' "$1" "$2" | sort -V | head -n1)" = "$2" ]
             }
 
-            echo "[DEBUG] - before condition LOC-VERSION = $MANAGER_VER"
-            if version_ge "$MIN_VERSION" "$MANAGER_VER"; then
-              echo "[DEBUG] - MANAGER_VERSION is lower than $MIN_VERSION"
-              message_type "lockfileVersion $MANAGER_VERSION < $MIN_VERSION in $LOC_FILE"
+            echo "[DEBUG] - 0 - before condition LOC-VERSION = $LOCKFILE_VERSION"
+            if version_ge "$MIN_LOCKFILE_VERSION" "$LOCKFILE_VERSION"; then
+              echo "[DEBUG] - 1 - LOCKFILE_VERSION is lower than $MIN_LOCKFILE_VERSION"
+              message_type "lockfileVersion $LOCKFILE_VERSION < $MIN_LOCKFILE_VERSION in $LOC_FILE"
 
-              if version_ge "$MANAGER_VERSION" "7.1.3"; then
-                echo "[DEBUG] - MANAGER_VERSION is GREATER than 7.1.3"
-                message_type "lockfileVersion $MANAGER_VERSION < $MIN_VERSION in $LOC_FILE"
-                echo "[DEBUG] - add PNPM specific conf"
-                corepack prepare npm@"$MANAGER_VERSION" --activate 1>/dev/null
-                pnpm config set auto-install-peers false
+              if version_ge "$LOCKFILE_VERSION" "7.1.3"; then
+                echo "[DEBUG] - 2 - LOCKFILE_VERSION is GREATER than 7.1.3"
+                message_type "lockfileVersion $LOCKFILE_VERSION < $MIN_LOCKFILE_VERSION in $LOC_FILE"
+                #corepack prepare npm@"$LOCKFILE_VERSION" --activate 1>/dev/null
+                #pnpm config set auto-install-peers false
               else
-                echo "[DEBUG] - MANAGER_VERSION is LOWER than 7.1.3"
-                #corepack prepare npm@"$MANAGER_VERSION" --activate 1>/dev/null
-                corepack use pnpm@"$MANAGER_VERSION" 1>/dev/null
+                echo "[DEBUG] - 3 - LOCKFILE_VERSION is LOWER than 7.1.3"
+                #corepack prepare npm@"$LOCKFILE_VERSION" --activate 1>/dev/null
+                #corepack use pnpm@"$LOCKFILE_VERSION" 1>/dev/null
               fi
             fi
             echo "[DEBUG] - pnpm version after compare"
@@ -164,8 +163,8 @@ jobs:
                   echo "[DEBUG] - compare version start"
                   compare_version
 
-                  #corepack use pnpm@"$MANAGER_VER"
-                  #corepack install --global pnpm@"$MANAGER_VER"
+                  #corepack use pnpm@"$LOCKFILE_VERSION"
+                  #corepack install --global pnpm@"$LOCKFILE_VERSION"
                   
                   echo "[DEBUG] - pnpm version after compare - double check"
                   pnpm --version
