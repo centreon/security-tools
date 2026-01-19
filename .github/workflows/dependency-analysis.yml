@@ -153,23 +153,20 @@ jobs:
                   message_type "NPM is no longer allowed. Kindly replace the lockfile using PNPM : $LOC_FILE"
                   ;;
                 "pnpm-lock.yaml")
-                  echo "[DEBUG] - get pnpm version"
-                  pnpm -v
-                  echo "[DEBUG] - get node version"
-                  node -v
                   echo "[DEBUG] - compare version start"
                   SKIP=$(compare_version)
+                  echo "[DEBUG] - SKIP = $SKIP"
                   if [ "$SKIP" == "true" ] ; then continue; fi 
-                  
+
                   echo "[DEBUG] - check manifests"
                   ls -la package.json
                   ls -la pnpm-lock.yaml
-                  echo "[DEBUG] - LOC_FILE = $LOC_FILE"
-                  
-                  echo "[DEBUG] - safe chain start"
-                  
+
+                  #echo "[DEBUG] - safe chain start"
+                  #echo "[DEBUG] - LOC_FILE = $LOC_FILE"
                   #pnpm install --frozen-lockfile --loglevel warn --safe-chain-logging=verbose
                   #pnpm install --frozen-lockfile --safe-chain-logging=verbose
+          
                   COUNT=$((COUNT+1))
                   ;;
                 "*")
