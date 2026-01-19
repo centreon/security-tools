@@ -55,13 +55,14 @@ jobs:
           fi
 
           function message_type() {
+            MSG="$1"
             if [ $ENFORCEMENT == "true" ]; then
-              echo "[ERROR] : $1"
-              echo "[ERROR] : $1"  >> "$ERROR_LOG"
+              echo "[ERROR] : $MSG"
+              echo "[ERROR] : $MSG" >> "$ERROR_LOG"
               FORCE_FAIL="true"
             else
-              echo "[WARNING] : $1"
-              echo "[WARNING] : $1"  >> "$ERROR_LOG"
+              echo "[WARNING] : $MSG"
+              echo "[WARNING] : $MSG" >> "$ERROR_LOG"
             fi
             cat "$ERROR_LOG"
           }
