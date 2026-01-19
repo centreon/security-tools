@@ -81,6 +81,7 @@ jobs:
           ERROR_LOG="error_log.txt"
           FORCE_FAIL="false"
           ENFORCEMENT="false"
+          SKIP="false"
           if [ "$current_timestamp" -ge "$input_timestamp" ]; then
             echo "[DEBUG]: Deadline passed."
             ENFORCEMENT="true"
@@ -153,7 +154,7 @@ jobs:
                   echo "[DEBUG] - get node version"
                   node -v
                   echo "[DEBUG] - compare version start"
-                  local skip=$(compare_version)
+                  SKIP=$(compare_version)
                   if [ "$SKIP" == "true" ] ; then continue; fi 
                   
                   echo "[DEBUG] - check manifests"
