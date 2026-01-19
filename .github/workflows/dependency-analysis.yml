@@ -167,7 +167,7 @@ jobs:
                   echo "[DEBUG] - safe chain start"
                   
                   #pnpm install --frozen-lockfile --loglevel warn --safe-chain-logging=verbose
-                  pnpm install --frozen-lockfile --safe-chain-logging=verbose
+                  #pnpm install --frozen-lockfile --safe-chain-logging=verbose
                   COUNT=$((COUNT+1))
                   ;;
                 "*")
