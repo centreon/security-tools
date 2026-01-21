@@ -135,7 +135,6 @@ jobs:
           recreate: true
           ignore_empty: true
           skip_unchanged: true
-          delete: true
           path: "error_log.txt"
 
   dependency-blacklist:
