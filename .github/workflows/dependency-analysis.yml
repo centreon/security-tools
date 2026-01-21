@@ -108,6 +108,8 @@ jobs:
               LOC_TYPE=$(basename $LOC_FILE)
               LOC_DIR=$(dirname $LOC_FILE)
               #cd $LOC_DIR
+              echo "[DEBUG] - COUNT = $COUNT / LocFile = $LOC_FILE
+
               case $LOC_TYPE in
                 "yarn.lock")
                   COUNT=$((COUNT+1))
