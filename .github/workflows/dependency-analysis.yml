@@ -105,6 +105,7 @@ jobs:
             COUNT=0
 
             for LOC_FILE in ${LOC_FILES[@]}; do
+              COUNT=$((COUNT+1))
               LOC_TYPE=$(basename $LOC_FILE)
               LOC_DIR=$(dirname $LOC_FILE)
               #cd $LOC_DIR
@@ -112,11 +113,9 @@ jobs:
 
               case $LOC_TYPE in
                 "yarn.lock")
-                  COUNT=$((COUNT+1))
                   message_type "YARN is no longer allowed. Kindly replace the lockfile using PNPM. Found in **$LOC_FILE**"
                   ;;
                 "package-lock.json")
-                  COUNT=$((COUNT+1))
                   message_type "NPM is no longer allowed. Kindly replace the lockfile using PNPM. Found in **$LOC_FILE**"
                   ;;
                 "pnpm-lock.yaml")
@@ -124,7 +123,6 @@ jobs:
                   SKIP=$(compare_version)
                   echo "[DEBUG] - SKIP = $SKIP"
                   if [ "$SKIP" == "true" ] ; then continue; fi 
-                  COUNT=$((COUNT+1))
                   ;;
                 "*")
                   message_type "A lockfile is required. No lockfile found in **$LOC_DIR**"
