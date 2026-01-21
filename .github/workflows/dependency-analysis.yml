@@ -73,25 +73,13 @@ jobs:
             # Compare versions
             version_ge() {
               [ "$(printf '%s\n' "$1" "$2" | sort -V | head -n1)" = "$2" ]
-            }
-
-            echo "[DEBUG] - 0 - before condition LOCKFILE_VERSION = $LOCKFILE_VERSION / MIN_LOCKFILE_VERSION = $MIN_LOCKFILE_VERSION"
-          
+            }          
             if version_ge "$MIN_LOCKFILE_VERSION" "$LOCKFILE_VERSION"; then
-              echo "[DEBUG] - 1 - LOCKFILE_VERSION is lower than $MIN_LOCKFILE_VERSION"
               message_type "PNPM lockfile update is required : lockfileVersion $LOCKFILE_VERSION < $MIN_LOCKFILE_VERSION found in **$LOC_FILE**"
             else
-              echo "[DEBUG] - 1 - LOCKFILE_VERSION is greater or equal to $MIN_LOCKFILE_VERSION"
               SKIP="true"
             fi
-            echo "[DEBUG] - SKIP in compare = $SKIP"
           }
-
-          # Move to module folder and find manifests
-          MODULE_FOLDER="${{ inputs.module_directory }}" || ""
-          if [[ -n "$MODULE_FOLDER" ]]; then
-            cd $MODULE_FOLDER
-          fi
 
           echo "[INFO] - Find manifest files"
           DEP_FILES=($(find ./ -type f -name "package.json"))
@@ -100,7 +88,6 @@ jobs:
           for DEP_FILE in ${DEP_FILES[@]}; do
             DEP_DIR=$(dirname $DEP_FILE)
             echo "[INFO] - Scanning $DEP_FILE"
-            echo "[DEBUG] - DEP_FILE = $DEP_FILE"
             LOC_FILES=($(find $DEP_DIR -type f -name "package-lock.json" -o -name "pnpm-lock.yaml" -o -name "yarn.lock"))
             COUNT=0
 
@@ -108,7 +95,6 @@ jobs:
               COUNT=$((COUNT+1))
               LOC_TYPE=$(basename $LOC_FILE)
               LOC_DIR=$(dirname $LOC_FILE)
-              #cd $LOC_DIR
               echo "[DEBUG] - COUNT = $COUNT / LocFile = $LOC_FILE"
 
               case $LOC_TYPE in
@@ -119,16 +105,13 @@ jobs:
                   message_type "NPM is no longer allowed. Kindly replace the lockfile using PNPM. Found in **$LOC_FILE**"
                   ;;
                 "pnpm-lock.yaml")
-                  echo "[DEBUG] - compare version start"
                   SKIP=$(compare_version)
-                  echo "[DEBUG] - SKIP = $SKIP"
                   if [ "$SKIP" == "true" ] ; then continue; fi 
                   ;;
                 "*")
                   message_type "A lockfile is required. No lockfile found in **$LOC_DIR**"
                   ;;
               esac
-              #cd -
             done
             if [[ $COUNT -gt 1 ]]; then
               message_type "$COUNT lockfiles were found. Kindly keep only the lockfile generated with PNPM. **Found in $LOC_DIR**"
@@ -136,7 +119,6 @@ jobs:
             echo "[DEBUG] - COUNT = $COUNT"
           done
 
-          echo "[DEBUG] - FORCE_FAIL = $FORCE_FAIL"
           if [ -s "$ERROR_LOG" ]; then
             if [ "FORCE_FAIL" ==  "true" ]; then
               echo "[FATAL]: Breaking the run."
@@ -145,8 +127,6 @@ jobs:
           else
             echo "[INFO] - OK nothing found"
           fi
-          echo -e "\n\n[DEBUG] - ERROR_LOG :"
-          cat $ERROR_LOG
         shell: bash
 
       - name: comment_PR
