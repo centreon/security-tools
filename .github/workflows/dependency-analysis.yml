@@ -59,12 +59,11 @@ jobs:
             MSG="$1"
             if [ $ENFORCEMENT == "true" ]; then
               echo "[ERROR] : $MSG"
-              echo "[ERROR] : $MSG" >> "$ERROR_LOG"
               FORCE_FAIL="true"
             else
               echo "[WARNING] : $MSG"
-              echo "[WARNING] : $MSG" >> "$ERROR_LOG"
             fi
+            echo "$MSG" >> "$ERROR_LOG"
           }
 
           # Compare pnpm version used in lockfile
@@ -83,7 +82,7 @@ jobs:
           
             if version_ge "$MIN_LOCKFILE_VERSION" "$LOCKFILE_VERSION"; then
               echo "[DEBUG] - 1 - LOCKFILE_VERSION is lower than $MIN_LOCKFILE_VERSION"
-              message_type "lockfileVersion $LOCKFILE_VERSION < $MIN_LOCKFILE_VERSION in $LOC_FILE"
+              message_type "lockfileVersion $LOCKFILE_VERSION < $MIN_LOCKFILE_VERSION found in $LOC_FILE. Lockfile update required"
             else
               echo "[DEBUG] - 1 - LOCKFILE_VERSION is greater or equal to $MIN_LOCKFILE_VERSION"
               SKIP="true"
@@ -115,11 +114,11 @@ jobs:
               case $LOC_TYPE in
                 "yarn.lock")
                   COUNT=$((COUNT+1))
-                  message_type "Yarn is no longer allowed. Kindly replace the lockfile using PNPM : $LOC_FILE"
+                  message_type "Yarn is no longer allowed. Kindly replace the lockfile using PNPM. Found in $LOC_FILE"
                   ;;
                 "package-lock.json")
                   COUNT=$((COUNT+1))
-                  message_type "NPM is no longer allowed. Kindly replace the lockfile using PNPM : $LOC_FILE"
+                  message_type "NPM is no longer allowed. Kindly replace the lockfile using PNPM. Found in $LOC_FILE"
                   ;;
                 "pnpm-lock.yaml")
                   echo "[DEBUG] - compare version start"
@@ -129,13 +128,13 @@ jobs:
                   COUNT=$((COUNT+1))
                   ;;
                 "*")
-                  message_type "no lockfile found in $LOC_DIR"
+                  message_type "No lockfile found in $LOC_DIR. A lockfile is required."
                   ;;
               esac
               #cd -
             done
             if [[ $COUNT -gt 1 ]]; then
-              message_type "$COUNT lockfiles were found. Kindly keep only the lockfile generated with PNPM : $LOC_DIR"
+              message_type "$COUNT lockfiles were found. Kindly keep only lockfile generated with PNPM. Found in $LOC_DIR"
             fi
             echo "[DEBUG] - COUNT = $COUNT"
           done
