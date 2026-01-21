@@ -108,7 +108,7 @@ jobs:
                   SKIP=$(compare_version)
                   if [ "$SKIP" == "true" ] ; then continue; fi 
                   ;;
-                "*")
+                "")
                   message_type "A lockfile is required. No lockfile found in **$LOC_DIR**"
                   ;;
               esac
@@ -116,7 +116,6 @@ jobs:
             if [[ $COUNT -gt 1 ]]; then
               message_type "$COUNT lockfiles were found. Kindly keep only the lockfile generated with PNPM. **Found in $LOC_DIR**"
             fi
-            echo "[DEBUG] - COUNT = $COUNT"
           done
 
           if [ -s "$ERROR_LOG" ]; then
