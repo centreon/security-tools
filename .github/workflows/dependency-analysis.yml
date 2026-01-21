@@ -82,7 +82,7 @@ jobs:
           
             if version_ge "$MIN_LOCKFILE_VERSION" "$LOCKFILE_VERSION"; then
               echo "[DEBUG] - 1 - LOCKFILE_VERSION is lower than $MIN_LOCKFILE_VERSION"
-              message_type "PNPM lockfile update is required : lockfileVersion $LOCKFILE_VERSION < $MIN_LOCKFILE_VERSION found in $LOC_FILE"
+              message_type "PNPM lockfile update is required : lockfileVersion $LOCKFILE_VERSION < $MIN_LOCKFILE_VERSION found in **$LOC_FILE**"
             else
               echo "[DEBUG] - 1 - LOCKFILE_VERSION is greater or equal to $MIN_LOCKFILE_VERSION"
               SKIP="true"
