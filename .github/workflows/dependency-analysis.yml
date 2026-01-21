@@ -67,7 +67,7 @@ jobs:
           function compare_version() {
             SKIP="false"
             MIN_LOCKFILE_VERSION="8.9.9"
-            LOCKFILE_VERSION=$(grep -E '^lockfileVersion:' "$LOC_TYPE" \
+            LOCKFILE_VERSION=$(grep -E '^lockfileVersion:' "$LOC_FILE" \
               | awk '{print $2}' \
               | tr -d "'\"")
             # Compare versions
