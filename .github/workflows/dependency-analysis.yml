@@ -11,7 +11,7 @@ on:
         type: string
 
 permissions:
-  contents: read
+  contents: write
 
 env:
   minimum_package_age_hours: 1 # 168 # 7 days
