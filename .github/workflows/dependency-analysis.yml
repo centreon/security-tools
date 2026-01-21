@@ -114,11 +114,11 @@ jobs:
               case $LOC_TYPE in
                 "yarn.lock")
                   COUNT=$((COUNT+1))
-                  message_type "Yarn is no longer allowed. Kindly replace the lockfile using PNPM. Found in $LOC_FILE"
+                  message_type "YARN is no longer allowed. Kindly replace the lockfile using PNPM. Found in **$LOC_FILE**"
                   ;;
                 "package-lock.json")
                   COUNT=$((COUNT+1))
-                  message_type "NPM is no longer allowed. Kindly replace the lockfile using PNPM. Found in $LOC_FILE"
+                  message_type "NPM is no longer allowed. Kindly replace the lockfile using PNPM. Found in **$LOC_FILE**"
                   ;;
                 "pnpm-lock.yaml")
                   echo "[DEBUG] - compare version start"
@@ -128,13 +128,13 @@ jobs:
                   COUNT=$((COUNT+1))
                   ;;
                 "*")
-                  message_type "No lockfile found in $LOC_DIR. A lockfile is required."
+                  message_type "A lockfile is required. No lockfile found in **$LOC_DIR**"
                   ;;
               esac
               #cd -
             done
             if [[ $COUNT -gt 1 ]]; then
-              message_type "$COUNT lockfiles were found. Kindly keep only lockfile generated with PNPM. Found in $LOC_DIR"
+              message_type "$COUNT lockfiles were found. Kindly keep only the lockfile generated with PNPM. **Found in $LOC_DIR**"
             fi
             echo "[DEBUG] - COUNT = $COUNT"
           done
