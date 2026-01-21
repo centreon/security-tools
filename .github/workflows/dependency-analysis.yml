@@ -14,9 +14,6 @@ permissions:
   pull-requests: write
   contents: read
 
-env:
-  minimum_package_age_hours: 1 # 168 # 7 days
-
 jobs:
   dependency-scan:
     name: Run PNPM usage analysis
@@ -141,7 +138,6 @@ jobs:
 
           echo "[DEBUG] - FORCE_FAIL = $FORCE_FAIL"
           if [ -s "$ERROR_LOG" ]; then
-            cat "$ERROR_LOG"
             if [ "FORCE_FAIL" ==  "true" ]; then
               echo "[FATAL]: Breaking the run."
               exit 1
