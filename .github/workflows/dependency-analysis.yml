@@ -11,7 +11,8 @@ on:
         type: string
 
 permissions:
-  contents: write
+  pull-requests: write
+  contents: read
 
 env:
   minimum_package_age_hours: 1 # 168 # 7 days
