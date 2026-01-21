@@ -133,8 +133,6 @@ jobs:
         with:
           GITHUB_TOKEN: ${{ secrets.CENTREON_TECHNIQUE_DEPENDENCY_PAT }}
           recreate: true
-          ignore_empty: true
-          skip_unchanged: true
           path: "error_log.txt"
 
   dependency-blacklist:
