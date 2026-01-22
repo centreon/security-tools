@@ -51,13 +51,16 @@ jobs:
 
           function message_type() {
             MSG="$1"
-            if [ $ENFORCEMENT == "true" ]; then
+
+            if [ "$ENFORCEMENT" == "true" ]; then
               echo "[ERROR] : $MSG"
               FORCE_FAIL="true"
             else
               echo "[WARNING] : $MSG"
             fi
             echo "$MSG" >> "$ERROR_LOG"
+
+            echo "[DEBUG] - message choice using $ENFORCEMENT = $ENFORCEMENT and FORCE_FAIL = $FORCE_FAIL"
           }
 
           # Compare pnpm version used in lockfile
@@ -169,7 +172,7 @@ jobs:
           # Quality gate
           if [ -s "$ERROR_LOG" ]; then
             if [ "FORCE_FAIL" ==  "true" ]; then
-              echo "[FATAL]: Breaking the run."
+              echo "[ERROR] - Breaking the run. Kindly, check the comment"
               FAIL_THE_BUILD="true"
             fi
           else
