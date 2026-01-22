@@ -82,12 +82,10 @@ jobs:
               SKIP="true"
             fi
           }
-
-          echo "[INFO] - Find manifest files"
-          DEP_FILES=($(find ./ -type f -name "package.json"))
-
+          
           # Scan manifests compliance
           echo "[INFO] - Scan manifests compliance"
+          DEP_FILES=($(find ./ -type f -name "package.json"))
           for DEP_FILE in ${DEP_FILES[@]}; do
             DEP_DIR=$(dirname $DEP_FILE)
             echo "[INFO] - Scanning $DEP_FILE"
