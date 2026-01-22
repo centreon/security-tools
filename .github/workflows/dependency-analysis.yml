@@ -171,7 +171,7 @@ jobs:
 
           # Quality gate
           if [ -s "$ERROR_LOG" ]; then
-            if [ "FORCE_FAIL" ==  "true" ]; then
+            if [ "$FORCE_FAIL" ==  "true" ]; then
               echo "[ERROR] - Breaking the run. Kindly, check the comment"
               FAIL_THE_BUILD="true"
             fi
