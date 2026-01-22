@@ -175,7 +175,8 @@ jobs:
           else
             echo "[OK] - Great, nothing found !"
           fi
-          echo "fail_the_build=$FAIL_THE_BUILD" >> "GITHUB_ENV"
+          echo "fail_the_build=$FAIL_THE_BUILD" >> "$GITHUB_ENV"
+          cat $GITHUB_ENV
         shell: bash
 
       - name: comment_PR
@@ -188,4 +189,6 @@ jobs:
 
       - name: Fail job if previous step failed
         if: env.fail_the_build == 'true'
-        run: exit 1
+        run: |
+          cat $GITHUB_ENV
+          exit 1
