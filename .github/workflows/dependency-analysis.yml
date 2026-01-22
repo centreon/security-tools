@@ -39,6 +39,7 @@ jobs:
           FORCE_FAIL="false"
           ENFORCEMENT="false"
           SKIP="false"
+          FAIL_THE_BUILD="false"
           if [ "$current_timestamp" -ge "$input_timestamp" ]; then
             echo "[DEBUG]: Deadline passed."
             ENFORCEMENT="true"
@@ -169,11 +170,12 @@ jobs:
           if [ -s "$ERROR_LOG" ]; then
             if [ "FORCE_FAIL" ==  "true" ]; then
               echo "[FATAL]: Breaking the run."
-              exit 1
+              FAIL_THE_BUILD="true"
             fi
           else
             echo "[OK] - Great, nothing found !"
           fi
+          echo "fail_the_build=$FAIL_THE_BUILD" >> "GITHUB_ENV"
         shell: bash
 
       - name: comment_PR
@@ -183,3 +185,7 @@ jobs:
           recreate: true
           ignore_empty: true
           path: "error_log.txt"
+
+      - name: Fail job if previous step failed
+        if: env.fail_the_build == 'true'
+        run: exit 1
