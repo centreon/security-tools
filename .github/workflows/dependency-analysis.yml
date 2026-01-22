@@ -20,11 +20,10 @@ jobs:
       - name: Check dependencies type and lockfiles version
         run: |
           # Check override
-          if [ "${{ vars.OVERRIDE_ALL_DEPENDENCY_SCAN }}" == "true" ]; then
-            echo "[DEBUG] - Global scan override enabled"
-            return 0
-          elif [[ "${{ vars.OVERRIDE_PNPM_COMPLIANCE }}" == "true" ]]; then
-            echo "[DEBUG] - PNPM scan override enabled"
+          if [ "${{ vars.OVERRIDE_DEPENDENCY_SCAN }}" == "true" ]; then
+            echo "[INFO] - Scan override enabled"
+            echo "fail_the_build=false" >> "$GITHUB_ENV"
+            cat $GITHUB_ENV
             return 0
           fi
 
@@ -41,7 +40,7 @@ jobs:
           SKIP="false"
           FAIL_THE_BUILD="false"
           if [ "$current_timestamp" -ge "$input_timestamp" ]; then
-            echo "[DEBUG]: Deadline passed."
+            echo "[INFO]: Deadline passed."
             ENFORCEMENT="true"
           fi
 
@@ -59,8 +58,6 @@ jobs:
               echo "[WARNING] : $MSG"
             fi
             echo "$MSG" >> "$ERROR_LOG"
-
-            echo "[DEBUG] - message choice using $ENFORCEMENT = $ENFORCEMENT and FORCE_FAIL = $FORCE_FAIL"
           }
 
           # Compare pnpm version used in lockfile
@@ -71,7 +68,6 @@ jobs:
               | awk '{print $2}' \
               | tr -d "'\"")
             # Compare versions
-            echo "[DEBUG] - compare version" 
             version_ge() {
               [ "$(printf '%s\n' "$1" "$2" | sort -V | head -n1)" = "$2" ]
             }          
@@ -191,5 +187,5 @@ jobs:
       - name: Fail job if previous step failed
         if: env.fail_the_build == 'true'
         run: |
-          cat $GITHUB_ENV
+          echo "[ERROR] - Breaking the run. Kindly, check the comment and the dependency analysis log above"
           exit 1
