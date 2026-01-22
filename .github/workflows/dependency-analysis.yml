@@ -10,14 +10,14 @@ permissions:
 
 jobs:
   dependency-scan:
-    name: Run PNPM usage analysis
+    name: Run dependencies analysis
     runs-on: ${{ github.repository_visibility != 'public' && 'centreon-security' || 'ubuntu-24.04' }}
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
 
-      - name: Check dependencies type and managers version
+      - name: Check dependencies type and lockfiles version
         run: |
           # Check override
           if [ "${{ vars.OVERRIDE_ALL_DEPENDENCY_SCAN }}" == "true" ]; then
@@ -67,9 +67,11 @@ jobs:
               | awk '{print $2}' \
               | tr -d "'\"")
             # Compare versions
+            echo "[DEBUG] - compare version" 
             version_ge() {
               [ "$(printf '%s\n' "$1" "$2" | sort -V | head -n1)" = "$2" ]
             }          
+            echo "[DEBUG] - MIN_LOCKFILE_VERSION = $MIN_LOCKFILE_VERSION and LOCKFILE_VERSION = $LOCKFILE_VERSION"
             if version_ge "$MIN_LOCKFILE_VERSION" "$LOCKFILE_VERSION"; then
               message_type "PNPM lockfile update is required : lockfileVersion $LOCKFILE_VERSION < $MIN_LOCKFILE_VERSION found in **$LOC_FILE**"
             else
@@ -170,7 +172,7 @@ jobs:
               exit 1
             fi
           else
-            echo "[INFO] - OK nothing found"
+            echo "[OK] - Great, nothing found !"
           fi
         shell: bash
 
