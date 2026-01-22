@@ -1704,3 +1704,5 @@ zapier-scripts:7.8.4
 zuper-cli:1.0.1
 zuper-sdk:1.0.57
 zuper-stream:2.0.9
+safe-chain-test:0.0.1-security
+eslint-js:0.0.1-security

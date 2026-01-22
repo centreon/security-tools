@@ -1,137 +1,191 @@
 name: dependency-checks
 
 on:
+  pull_request:
   workflow_call:
+
+permissions:
+  pull-requests: write
+  contents: read
 
 jobs:
   dependency-scan:
-    name: Run internal dependency script
+    name: Run dependencies analysis
     runs-on: ${{ github.repository_visibility != 'public' && 'centreon-security' || 'ubuntu-24.04' }}
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
-        with:
-          fetch-depth: 0
 
-      - name: Run dependency scan
+      - name: Check dependencies type and lockfiles version
         run: |
-          if [ -f compromised-packages.txt ]; then rm -f compromised-packages.txt; fi
-          wget https://raw.githubusercontent.com/centreon/security-tools/main/blacklist/compromised-packages.txt
+          # Check override
+          if [ "${{ vars.OVERRIDE_DEPENDENCY_SCAN }}" == "true" ]; then
+            echo "[INFO] - Scan override enabled"
+            echo "fail_the_build=false" >> "$GITHUB_ENV"
+            cat $GITHUB_ENV
+            return 0
+          fi
+
+          # Check date
+          current_timestamp=$(date +%s)
+          DUE_DATE="${{ vars.OVERRIDE_DEPENDENCY_ENFORCEMENT_DATE }}"
+          input_timestamp=$(date -d "$DUE_DATE" +%s)
+
+          # Setup vars
           ERROR_LOG="error_log.txt"
-          DEP_LIST="compromised-packages.txt"
-          LOCKFILES=($(find ./ -name "package-lock.json" -o -name "pnpm-lock.yaml" -o -name "yarn.lock"))
+          touch "$ERROR_LOG"
+          FORCE_FAIL="false"
+          ENFORCEMENT="false"
+          SKIP="false"
+          FAIL_THE_BUILD="false"
+          if [ "$current_timestamp" -ge "$input_timestamp" ]; then
+            echo "[INFO]: Deadline passed."
+            ENFORCEMENT="true"
+          fi
+
+          ##
+          # Scan manifests compliance
+          ##
+
+          function message_type() {
+            MSG="$1"
+
+            if [ "$ENFORCEMENT" == "true" ]; then
+              echo "[ERROR] : $MSG"
+              FORCE_FAIL="true"
+            else
+              echo "[WARNING] : $MSG"
+            fi
+            echo "$MSG" >> "$ERROR_LOG"
+          }
+
+          # Compare pnpm version used in lockfile
+          function compare_version() {
+            SKIP="false"
+            MIN_LOCKFILE_VERSION="8.9.9"
+            LOCKFILE_VERSION=$(grep -E '^lockfileVersion:' "$LOC_FILE" \
+              | awk '{print $2}' \
+              | tr -d "'\"")
+            # Compare versions
+            version_ge() {
+              [ "$(printf '%s\n' "$1" "$2" | sort -V | head -n1)" = "$2" ]
+            }          
+            echo "[DEBUG] - MIN_LOCKFILE_VERSION = $MIN_LOCKFILE_VERSION and LOCKFILE_VERSION = $LOCKFILE_VERSION"
+            if version_ge "$MIN_LOCKFILE_VERSION" "$LOCKFILE_VERSION"; then
+              message_type "PNPM lockfile update is required : lockfileVersion $LOCKFILE_VERSION < $MIN_LOCKFILE_VERSION found in **$LOC_FILE**"
+            else
+              SKIP="true"
+            fi
+          }
+          
+          # Scan manifests compliance
+          echo "[INFO] - Scan manifests compliance"
+          DEP_FILES=($(find ./ -type f -name "package.json"))
+          for DEP_FILE in ${DEP_FILES[@]}; do
+            DEP_DIR=$(dirname $DEP_FILE)
+            echo "[INFO] - Scanning $DEP_FILE"
+            LOC_FILES=($(find $DEP_DIR -maxdepth 1 -type f -name "package-lock.json" -o -name "pnpm-lock.yaml" -o -name "yarn.lock"))
+            COUNT=0
+
+            for LOC_FILE in ${LOC_FILES[@]}; do
+              COUNT=$((COUNT+1))
+              LOC_TYPE=$(basename $LOC_FILE)
+              LOC_DIR=$(dirname $LOC_FILE)
+              echo "[DEBUG] - COUNT = $COUNT / LocFile = $LOC_FILE"
+
+              case $LOC_TYPE in
+                "yarn.lock")
+                  message_type "YARN is no longer allowed. Kindly replace the lockfile using PNPM. Found in **$LOC_FILE**"
+                  ;;
+                "package-lock.json")
+                  message_type "NPM is no longer allowed. Kindly replace the lockfile using PNPM. Found in **$LOC_FILE**"
+                  ;;
+                "pnpm-lock.yaml")
+                  SKIP=$(compare_version)
+                  if [ "$SKIP" == "true" ] ; then continue; fi 
+                  ;;
+                "")
+                  message_type "A lockfile is required. No lockfile found in **$LOC_DIR**"
+                  ;;
+              esac
+            done
+            if [[ $COUNT -gt 1 ]]; then
+              message_type "$COUNT lockfiles were found. Kindly keep only the lockfile generated with PNPM. Found in **$LOC_DIR**"
+            fi
+          done
+
+          ##
+          # Scan manifests for blacklisted dependencies
+          ##
 
           function checkPnpmLockfile() {
             # Find dependency formated as
             # "name@version:"
             if grep -qF "$NAME@$VERSION" "$LOCKFILE"; then
               echo "$NAME:$VERSION was found in $LOCKFILE"
-              echo "::error:: $NAME:$VERSION was found in $LOCKFILE" >> "$ERROR_LOG"
+              echo "[ERROR] - $NAME:$VERSION was found in $LOCKFILE" >> "$ERROR_LOG"
             else
-                echo -n "."
-            fi
-          }
-
-          function checkNpmLockfile() {
-            # Find dependencies formated as
-            # "@accordproject/concerto-linter-default-ruleset": {
-            #      "version": "3.24.1",
-            local package="$1"
-            local version="$2"
-            local extractedDep
-
-            extractedDep=$(awk -v name="$package" -v version="$version" '
-              /"dependencies": *{/ { in_deps=1; next }
-              in_deps && /"[^"]+": *{/ {
-                match($0, /"([^"]+)": *{/, arr)
-                dep = arr[1]
-                getline
-                if ($0 ~ /"version":/) {
-                  match($0, /"version": *"([^"]+)"/, ver)
-                  if (dep == name && ver[1] == version) {
-                    print dep " " ver[1]
-                  }
-                }
-              }
-              ' "$LOCKFILE"
-            )
-            if [[ "$extractedDep" == "$package $version" ]]; then
-              echo "$package:$version" "Was found in $LOCKFILE"
-              echo "::error:: $package:$version Was found in $LOCKFILE" >> "$ERROR_LOG"
-            else
-                echo -n "."
-            fi
-          }
-
-          function checkYarnLockfile() {
-            # Find dependencies formated as
-            # "@aashutoshrathi/word-wrap@^1.2.3":
-            #    version "1.2.6"
-            local package="$1"
-            local version="$2"
-            local extractedDep
-          
-            extractedDep=$(awk -v pkg="$package" '
-                /^".*":$/ {
-                  split($0, arr, ",")
-                  dep=arr[1]
-                  gsub(/"/, "", dep)
-                  sub(/@[^@]*$/, "", dep)
-                  current_pkg=dep
-                }
-                /version "/ {
-                  match($0, /"([^"]+)"/, v)
-                  if(current_pkg==pkg) print current_pkg, v[1]
-                }
-              ' "$LOCKFILE")
-            if [[ "$extractedDep" == "$package $version" ]]; then
-              echo "$package:$version Was found in $LOCKFILE"
-              echo "::error:: $package:$version Was found in $LOCKFILE" >> "$ERROR_LOG"
-            else
-                echo -n "."
+              echo -n "."
             fi
           }
 
           function checkManifest() {
             COUNT=0
-            echo "::info:: Testing manifest $LOCKFILE"
+            echo "[INFO] - Testing manifest $LOCKFILE"
             manifest_type=$(basename "$LOCKFILE")
 
             while IFS=':' read -r NAME VERSION; do
               # ignore empty and commented lines
               [[ -z "${NAME// }" ]] && continue
               [[ "$NAME" =~ ^# ]] && continue
-              #echo "DEBUG To check $NAME $VERSION"
+
               case "$manifest_type" in
                 "pnpm-lock.yaml")
                   checkPnpmLockfile
                   ;;
-                "yarn.lock")
-                  checkYarnLockfile "$NAME" "$VERSION"
-                  ;;
-                "package-lock.json")
-                  checkNpmLockfile "$NAME" "$VERSION"
-                  ;;
                 "*")
-                  echo "KO manifest not managed"
-                  exit 1
+                  message_type "Dependency manager not managed. Found in $LOCKFILE" >> "$ERROR_LOG"
               esac
+
               COUNT=$((COUNT+1))
             done < "$DEP_LIST"
-            echo "Scanned $COUNT IOC"
+            echo "[INFO] - Scanned $COUNT IOC"
           }
 
-          touch "$ERROR_LOG"
+          # Check blacklist
+          echo "[INFO] - Scan manifests for blacklisted dependencies"
+          DEP_LIST="compromised-packages.txt"
+          wget https://raw.githubusercontent.com/centreon/security-tools/main/blacklist/"$DEP_LIST"
+
+          LOCKFILES=($(find ./ -type f -name "pnpm-lock.yaml"))
           for LOCKFILE in "${LOCKFILES[@]}"; do
             checkManifest "$LOCKFILE"
           done
-          if [ -s "$ERROR_LOG" ]; then
-            echo -e "\nFATAL Breaking the run as following dependencies were found:"
-            cat "$ERROR_LOG"
-            exit 1
-          else
-            echo "OK nothing found"
-          fi
 
+          # Quality gate
+          if [ -s "$ERROR_LOG" ]; then
+            if [ "$FORCE_FAIL" ==  "true" ]; then
+              echo "[ERROR] - Breaking the run. Kindly, check the comment"
+              FAIL_THE_BUILD="true"
+            fi
+          else
+            echo "[OK] - Great, nothing found !"
+          fi
+          echo "fail_the_build=$FAIL_THE_BUILD" >> "$GITHUB_ENV"
+          cat $GITHUB_ENV
         shell: bash
+
+      - name: comment_PR
+        continue-on-error: true
+        uses: marocchino/sticky-pull-request-comment@773744901bac0e8cbb5a0dc842800d45e9b2b405 # v2.9.4
+        with:
+          recreate: true
+          ignore_empty: true
+          path: "error_log.txt"
+
+      - name: Fail job if previous step failed
+        if: env.fail_the_build == 'true'
+        run: |
+          echo "[ERROR] - Breaking the run. Kindly, check the comment and the dependency analysis log above"
+          exit 1
