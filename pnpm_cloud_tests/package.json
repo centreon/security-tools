@@ -1,8 +1,0 @@
-{
-  "devDependencies": {
-    "playwright": "^1.49.1",
-    "newman": "6.2.1",
-    "newman-reporter-htmlextra": "1.23.1",
-    "newman-reporter-json-summary": "1.0.14"
-  }
-}
