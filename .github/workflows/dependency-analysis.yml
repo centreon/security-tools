@@ -176,7 +176,7 @@ jobs:
           cat $GITHUB_ENV
 
           ## POC list and block direct nodeJS dependencies installations
-          # TODO : remove this section when all workflows will be compliant
+          # TODO: remove this section when all workflows will be compliant
           
           ## Scan for direct NodeJS dependencies installations without --frozen-lockfile
           echo "[INFO] - Scan for direct NodeJS dependencies installations without --frozen-lockfile"
@@ -184,20 +184,20 @@ jobs:
           # TODO Fill error_log with issues to add them in the PR comment
           for file in $(find .github -type f -name "*.yml" -o -name "*.yaml"); do
             if grep -E 'pnpm install( [^-\n][^"]*)?$' "$file" | grep -v -- '--frozen-lockfile'; then
-              echo "[ERROR] - Installation NodeJS sans --frozen-lockfile trouvée dans $file"
+              echo "[ERROR] - NodeJS installation without --frozen-lockfile found in $file"
               ERROR=1
             fi
             if grep -E 'yarn install( [^-\n][^"]*)?$' "$file" | grep -v -- '--frozen-lockfile'; then
-              echo "[ERROR] - Installation NodeJS sans --frozen-lockfile trouvée dans $file"
+              echo "[ERROR] - NodeJS installation without --frozen-lockfile found in $file"
               ERROR=1
             fi
-            if grep -E 'npm install( [^-\n][^"]*)?$' "$file" | grep -v -- '--frozen-lockfile'; then
-              echo "[ERROR] - Installation NodeJS sans --frozen-lockfile trouvée dans $file"
+              if grep -E 'npm install( [^-\n][^"]*)?$' "$file" | grep -v -- '--frozen-lockfile'; then
+              echo "[ERROR] - NodeJS installation without --frozen-lockfile found in $file"
               ERROR=1
             fi
           done
           if [ $ERROR -eq 1 ]; then
-            echo "[ERROR] - Des installations NodeJS non conformes ont été trouvées."
+            echo "[ERROR] - Non-compliant NodeJS installations were found."
             exit 1
           fi
         shell: bash
