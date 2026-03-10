@@ -11,7 +11,7 @@ permissions:
 jobs:
   dependency-scan:
     name: Run dependencies analysis
-    runs-on: ${{ github.repository_visibility != 'public' && 'centreon-security' || 'ubuntu-24.04' }}
+    runs-on: ${{ (github.repository_visibility != 'public' && github.repository_owner == 'centreon') && 'centreon-security' || 'ubuntu-24.04' }}
 
     steps:
       - name: Checkout Repository
@@ -24,7 +24,7 @@ jobs:
             echo "[INFO] - Scan override enabled"
             echo "fail_the_build=false" >> "$GITHUB_ENV"
             cat $GITHUB_ENV
-            return 0
+            exit 0 # original return does not seems to be working in a pure GHA run statement
           fi
 
           # Check date
