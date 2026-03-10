@@ -30,7 +30,7 @@ on:
 jobs:
   code-analysis:
     name: Run Checkmarx
-    runs-on: ${{ github.repository_visibility != 'public' && 'centreon-security' || 'ubuntu-24.04' }}
+    runs-on: ${{ (github.repository_visibility != 'public' && github.repository_owner == 'centreon') && 'centreon-security' || 'ubuntu-24.04' }}
 
     steps:
       - name: Check parameters
@@ -92,7 +92,8 @@ jobs:
 
       - name: Run code analysis
         if: env.enable_analysis  == 'true'
-        uses: checkmarx/ast-github-action@7510c0d292e3de51feb93c2c708c8465c306be86 # 2.3.31
+
+        uses: checkmarx/ast-github-action@327efb5d1dd16ac6c7c21a9ff8ec1e8ec393b5e6 # v2.3.32
         with:
           project_name: ${{ inputs.module_name }}
           base_uri: ${{ secrets.base_uri }}
