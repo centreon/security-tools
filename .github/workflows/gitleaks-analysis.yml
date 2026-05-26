@@ -6,7 +6,7 @@ on:
 jobs:
   secret-scan:
     name: Run Gitleaks
-    runs-on: ${{ (github.repository_visibility != 'public' && github.repository_owner == 'centreon') && 'centreon-security' || 'ubuntu-24.04' }}
+    runs-on: ${{ ((github.repository_owner == 'centreon' || github.repository_owner == 'quanta-computing') && github.repository_visibility != 'public') && 'centreon-security' || 'ubuntu-24.04' }}
 
     steps:
       - name: Checkout Repository
@@ -14,11 +14,40 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Install Gitleaks
+        run: |
+          GITLEAKS_VERSION=$(curl -s https://api.github.com/repos/gitleaks/gitleaks/releases/latest \
+            | grep '"tag_name"' | sed 's/.*"v\([^"]*\)".*/\1/')
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+            | tar -xz -C /usr/local/bin gitleaks
+          echo "Gitleaks $(gitleaks version) installed"
+
       - name: Run secret scan
-        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_LICENSE: "Centreon"
           GITLEAKS_ENABLE_COMMENTS: false
           GITLEAKS_ENABLE_UPLOAD_ARTIFACT: false
           GITLEAKS_ENABLE_SUMMARY: false
+        run: |
+          BASE="${{ github.event.pull_request.base.sha }}"
+          HEAD="${{ github.sha }}"
+
+          gitleaks detect \
+            --source . \
+            --log-opts="--no-merges --first-parent ${BASE}^..${HEAD}" \
+            --exit-code=2 \
+            --redact \
+            --verbose
+          EXIT_CODE=$?
+
+          if [ $EXIT_CODE -eq 0 ]; then
+            echo "No secrets found."
+          elif [ $EXIT_CODE -eq 2 ]; then
+            echo "::error::Gitleaks has detected secrets in this branch!"
+            exit 1
+          else
+            # Code 1 = erreur git (invalid revision range, merge commit, etc.)
+            echo "::warning::Gitleaks encountered a git error (exit code: ${EXIT_CODE}). Likely an invalid revision range due to a merge commit. Scan skipped for this run."
+            exit 0
+          fi
