@@ -29,9 +29,10 @@ jobs:
           GITLEAKS_ENABLE_COMMENTS: false
           GITLEAKS_ENABLE_UPLOAD_ARTIFACT: false
           GITLEAKS_ENABLE_SUMMARY: false
+          HEAD: "${{ github.event.pull_request.head.sha || github.sha }}"
+          BASE_SHA: "${{ github.event.pull_request.base.sha }}"
         run: |
-          HEAD="${{ github.event.pull_request.head.sha }}"
-          BASE=$(git merge-base "${{ github.event.pull_request.base.sha }}" "${HEAD}")
+          BASE=$(git merge-base "${BASE_SHA}" "${HEAD}")
 
           echo "Scanning range: ${BASE}..${HEAD}"
 
