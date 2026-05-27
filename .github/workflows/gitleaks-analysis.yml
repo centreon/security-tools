@@ -30,12 +30,14 @@ jobs:
           GITLEAKS_ENABLE_UPLOAD_ARTIFACT: false
           GITLEAKS_ENABLE_SUMMARY: false
         run: |
-          BASE="${{ github.event.pull_request.base.sha }}"
-          HEAD="${{ github.sha }}"
+          HEAD="${{ github.event.pull_request.head.sha }}"
+          BASE=$(git merge-base "${{ github.event.pull_request.base.sha }}" "${HEAD}")
+
+          echo "Scanning range: ${BASE}..${HEAD}"
 
           gitleaks detect \
             --source . \
-            --log-opts="--no-merges --first-parent ${BASE}^..${HEAD}" \
+            --log-opts="--no-merges --first-parent ${BASE}..${HEAD}" \
             --exit-code=2 \
             --redact \
             --verbose
