@@ -49,8 +49,12 @@ jobs:
           elif [ $EXIT_CODE -eq 2 ]; then
             echo "::error::Gitleaks has detected secrets in this branch!"
             exit 1
-          else
-            # Code 1 = erreur git (invalid revision range, merge commit, etc.)
+          elif [ $EXIT_CODE -eq 1 ]; then
+            # Code 1 = invalid revision range, merge commit, etc.
             echo "::warning::Gitleaks encountered a git error (exit code: ${EXIT_CODE}). Likely an invalid revision range due to a merge commit. Scan skipped for this run."
             exit 0
+          else
+            # Code 128 =missing commit in history or unmanaged case
+            echo "::error::Gitleaks encountered an internal error (exit code: ${EXIT_CODE}). Contact the security team to investigate."
+            exit 1
           fi
