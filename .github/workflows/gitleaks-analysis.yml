@@ -54,7 +54,7 @@ jobs:
             echo "::error::Gitleaks has detected secrets in this branch!"
             exit 1
           else
-            # Code 128 =missing commit in history or unmanaged case
+            # Code 128 = missing commit in history or unmanaged case
             echo "::error::Gitleaks encountered an internal error (exit code: ${EXIT_CODE}). Contact the security team to investigate."
             exit 1
           fi
