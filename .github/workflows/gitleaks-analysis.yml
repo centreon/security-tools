@@ -35,12 +35,12 @@ jobs:
           BASE_SHA: "${{ github.event.pull_request.base.sha }}"
         run: |
           BASE=$(git merge-base "${BASE_SHA}" "${HEAD}")
-
-          echo "Scanning range: ${BASE}..${HEAD}"
+          RANGE="${BASE}..${HEAD}"
+          echo "Scanning range: $RANGE"
 
           gitleaks detect \
             --source . \
-            --log-opts="--no-merges --first-parent ${BASE}..${HEAD}" \
+            --log-opts="--no-merges --first-parent $RANGE" \
             --exit-code=2 \
             --redact \
             --verbose
@@ -58,5 +58,6 @@ jobs:
           else
             # Code 128 = missing commit in history or unmanaged case
             echo "::error::Gitleaks encountered an internal error (exit code: ${EXIT_CODE}). Contact the security team to investigate."
+            echo "::warning:: Kindly the security team to investigate this error"
             exit 1
           fi
