@@ -14,50 +14,11 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install Gitleaks
-        run: |
-          GITLEAKS_VERSION=$(curl -s https://api.github.com/repos/gitleaks/gitleaks/releases/latest \
-            | grep '"tag_name"' | sed 's/.*"v\([^"]*\)".*/\1/')
-          mkdir -p "$HOME/.local/bin"
-          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
-            | tar -xz -C "$HOME/.local/bin" gitleaks
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
-          echo "Gitleaks $(gitleaks version) installed"
-
       - name: Run secret scan
+        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_LICENSE: "Centreon"
           GITLEAKS_ENABLE_COMMENTS: false
           GITLEAKS_ENABLE_UPLOAD_ARTIFACT: false
           GITLEAKS_ENABLE_SUMMARY: false
-          HEAD: "${{ github.event.pull_request.head.sha || github.sha }}"
-          BASE_SHA: "${{ github.event.pull_request.base.sha }}"
-        run: |
-          BASE=$(git merge-base "${BASE_SHA}" "${HEAD}")
-          RANGE="${BASE}..${HEAD}"
-          echo "Scanning range: $RANGE"
-
-          gitleaks detect \
-            --source . \
-            --log-opts="--no-merges --first-parent $RANGE" \
-            --exit-code=2 \
-            --redact \
-            --verbose
-          EXIT_CODE=$?
-
-          if [ $EXIT_CODE -eq 0 ]; then
-            echo "No secrets found."
-          elif [ $EXIT_CODE -eq 1 ]; then
-            # Code 1 = invalid revision range, merge commit, etc.
-            echo "::warning::Gitleaks encountered a git error (exit code: ${EXIT_CODE}). Likely an invalid revision range due to a merge commit. Scan skipped for this run."
-            exit 0
-          elif [ $EXIT_CODE -eq 2 ]; then
-            echo "::error::Gitleaks has detected secrets in this branch!"
-            exit 1
-          else
-            # Code 128 = missing commit in history or unmanaged case
-            echo "::error::Gitleaks encountered an internal error (exit code: ${EXIT_CODE}). Contact the security team to investigate."
-            echo "::warning:: Kindly the security team to investigate this error"
-            exit 1
-          fi
