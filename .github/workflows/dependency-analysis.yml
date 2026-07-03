@@ -78,7 +78,7 @@ jobs:
               SKIP="true"
             fi
           }
-          
+
           # Scan manifests compliance
           echo "[INFO] - Scan manifests compliance"
           DEP_FILES=($(find ./ -type f -name "package.json"))
