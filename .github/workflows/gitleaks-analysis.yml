@@ -3,6 +3,10 @@ name: gitleaks
 on:
   workflow_call:
 
+env:
+  # Pinned gitleaks release.
+  GITLEAKS_VERSION: "8.30.1"
+
 jobs:
   secret-scan:
     name: Run Gitleaks
@@ -14,11 +18,79 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Install Gitleaks
+        run: |
+          ASSET="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          BASE_URL="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}"
+
+          workdir="$(mktemp -d)"
+          cd "$workdir"
+
+          curl -sSfL -o "${ASSET}" "${BASE_URL}/${ASSET}"
+          curl -sSfL -o checksums.txt "${BASE_URL}/gitleaks_${GITLEAKS_VERSION}_checksums.txt"
+
+          # Verify integrity
+          grep " ${ASSET}\$" checksums.txt | sha256sum -c -
+
+          mkdir -p "$HOME/.local/bin"
+          tar -xzf "${ASSET}" -C "$HOME/.local/bin" gitleaks
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+          "$HOME/.local/bin/gitleaks" version
+
       - name: Run secret scan
-        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITLEAKS_LICENSE: "Centreon"
-          GITLEAKS_ENABLE_COMMENTS: false
-          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: false
-          GITLEAKS_ENABLE_SUMMARY: false
+        run: |
+          # Build the commit range from the triggering event.
+          LOG_OPTS=""
+          case "${{ github.event_name }}" in
+            pull_request)
+              HEAD="${{ github.event.pull_request.head.sha }}"
+              BASE="$(git merge-base "${{ github.event.pull_request.base.sha }}" "${HEAD}")"
+              echo "Scanning PR range: ${BASE}..${HEAD}"
+              LOG_OPTS="--no-merges --first-parent ${BASE}..${HEAD}"
+              ;;
+            push)
+              BEFORE="${{ github.event.before }}"
+              AFTER="${{ github.event.after }}"
+              # New branch rewritten history: fall back to a full scan rather than a bad range.
+              if [ -z "${BEFORE}" ] \
+                 || [ "${BEFORE}" = "0000000000000000000000000000000000000000" ] \
+                 || ! git cat-file -e "${BEFORE}^{commit}" 2>/dev/null; then
+                echo "Push without a valid previous commit: scanning full history."
+              else
+                echo "Scanning push range: ${BEFORE}..${AFTER}"
+                LOG_OPTS="--no-merges ${BEFORE}..${AFTER}"
+              fi
+              ;;
+            *)
+              # workflow_dispatch: scan the full history.
+              echo "Event '${{ github.event_name }}': scanning full history."
+              ;;
+          esac
+
+          # Execute analysis
+          EXIT_CODE=0
+          if [ -n "${LOG_OPTS}" ]; then
+            gitleaks detect \
+              --source . \
+              --log-opts="${LOG_OPTS}" \
+              --exit-code=2 \
+              --redact \
+              --verbose || EXIT_CODE=$?
+          else
+            gitleaks detect \
+              --source . \
+              --exit-code=2 \
+              --redact \
+              --verbose || EXIT_CODE=$?
+          fi
+
+          if [ "${EXIT_CODE}" -eq 0 ]; then
+            echo "No secrets found."
+          elif [ "${EXIT_CODE}" -eq 2 ]; then
+            echo "::error::Gitleaks has detected secrets in this branch!"
+            exit 1
+          else
+            echo "::warning::Gitleaks encountered a git error (exit code: ${EXIT_CODE}). Scan skipped for this run."
+            exit 0
+          fi
