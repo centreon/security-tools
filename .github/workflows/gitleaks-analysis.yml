@@ -148,5 +148,6 @@ jobs:
             exit 1
           else
             echo "::error::Gitleaks encountered an unexpected error (exit code: ${EXIT_CODE})."
-            exit 0
+            # exit 0
+            exit 1
           fi
