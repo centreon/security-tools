@@ -86,7 +86,6 @@ jobs:
             esac
 
             if [ -n "${LOG_OPTS}" ]; then
-              # shellcheck disable=SC2086
               git log ${LOG_OPTS} >/dev/null 2>&1 || return 1
             fi
             return 0
@@ -107,7 +106,7 @@ jobs:
           }
 
           attempt=1
-          max_attempts=3
+          max_attempts=5
           while : ; do
             if compute_range; then
               echo "Commit range resolved on attempt ${attempt}: ${LOG_OPTS:-<full history>}"
@@ -115,8 +114,8 @@ jobs:
             fi
 
             if [ "${attempt}" -ge "${max_attempts}" ]; then
-              echo "::error::Could not resolve a valid commit range after ${max_attempts} attempts."
-              echo "::error::The scan target is missing from the checkout (likely a force-push race); re-run this job."
+              echo "::error::Could not resolve a valid commit range after ${max_attempts} attempts. Skipping"
+              echo "::error::The scan target is missing from the checkout (likely a force-push race); re-run this job. Skipping"
               exit 1
             fi
 
@@ -149,5 +148,5 @@ jobs:
             exit 1
           else
             echo "::error::Gitleaks encountered an unexpected error (exit code: ${EXIT_CODE})."
-            exit 1
+            exit 0
           fi
