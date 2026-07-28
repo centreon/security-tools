@@ -3,6 +3,11 @@ name: gitleaks
 on:
   workflow_call:
 
+# Cancel superseded PR scans; queue push/scheduled runs so a protected-branch scan is never dropped.
+concurrency:
+  group: gitleaks-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 env:
   # Pinned gitleaks release.
   GITLEAKS_VERSION: "8.30.1"
@@ -39,38 +44,90 @@ jobs:
           "$HOME/.local/bin/gitleaks" version
 
       - name: Run secret scan
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+          PUSH_AFTER: ${{ github.event.after }}
         run: |
-          # Build the commit range from the triggering event.
-          LOG_OPTS=""
-          case "${{ github.event_name }}" in
-            pull_request)
-              HEAD="${{ github.event.pull_request.head.sha }}"
-              BASE="$(git merge-base "${{ github.event.pull_request.base.sha }}" "${HEAD}")"
-              echo "Scanning PR range: ${BASE}..${HEAD}"
-              LOG_OPTS="--no-merges --first-parent ${BASE}..${HEAD}"
-              ;;
-            push)
-              BEFORE="${{ github.event.before }}"
-              AFTER="${{ github.event.after }}"
-              # New branch rewritten history: fall back to a full scan rather than a bad range.
-              if [ -z "${BEFORE}" ] \
-                 || [ "${BEFORE}" = "0000000000000000000000000000000000000000" ] \
-                 || ! git cat-file -e "${BEFORE}^{commit}" 2>/dev/null; then
-                echo "Push without a valid previous commit: scanning full history."
-              else
-                echo "Scanning push range: ${BEFORE}..${AFTER}"
-                LOG_OPTS="--no-merges ${BEFORE}..${AFTER}"
-              fi
-              ;;
-            *)
-              # workflow_dispatch: scan the full history.
-              echo "Event '${{ github.event_name }}': scanning full history."
-              ;;
-          esac
+          set -u
 
-          # Execute analysis
+          # checkout pins the PR merge ref at trigger time, so a mid-run push can
+          # leave the head commit out of the clone. Resolve the range in a loop,
+          # re-fetching between attempts, and scan only once it is valid.
+          LOG_OPTS=""
+          HEAD_SHA="${PR_HEAD_SHA}"
+
+          # Sets LOG_OPTS (empty => full scan); returns non-zero if the range is
+          # unresolvable. Validated with gitleaks' exact flags.
+          compute_range() {
+            case "${EVENT_NAME}" in
+              pull_request)
+                git cat-file -e "${HEAD_SHA}^{commit}" 2>/dev/null || return 1
+                base="$(git merge-base "${PR_BASE_SHA}" "${HEAD_SHA}" 2>/dev/null)" || return 1
+                LOG_OPTS="--no-merges --first-parent ${base}..${HEAD_SHA}"
+                ;;
+              push)
+                # New branch / rewritten history: full scan.
+                if [ -z "${PUSH_BEFORE}" ] \
+                   || [ "${PUSH_BEFORE}" = "0000000000000000000000000000000000000000" ] \
+                   || ! git cat-file -e "${PUSH_BEFORE}^{commit}" 2>/dev/null; then
+                  LOG_OPTS=""
+                else
+                  LOG_OPTS="--no-merges ${PUSH_BEFORE}..${PUSH_AFTER}"
+                fi
+                ;;
+              *)
+                # workflow_dispatch, etc: full scan.
+                LOG_OPTS=""
+                ;;
+            esac
+
+            if [ -n "${LOG_OPTS}" ]; then
+              # shellcheck disable=SC2086
+              git log ${LOG_OPTS} >/dev/null 2>&1 || return 1
+            fi
+            return 0
+          }
+
+          # Fetch the refs the range needs (actions/checkout can't be re-run in a
+          # loop). Falls back to the live PR tip if the head SHA was force-pushed away.
+          refetch() {
+            if [ "${EVENT_NAME}" = "pull_request" ] && [ -n "${PR_NUMBER}" ]; then
+              git fetch --no-tags --force origin \
+                "+refs/pull/${PR_NUMBER}/head:refs/remotes/origin/pr/${PR_NUMBER}" || true
+              if ! git cat-file -e "${HEAD_SHA}^{commit}" 2>/dev/null; then
+                HEAD_SHA="$(git rev-parse "refs/remotes/origin/pr/${PR_NUMBER}" 2>/dev/null || echo "${HEAD_SHA}")"
+              fi
+            else
+              git fetch --no-tags --force origin "+refs/heads/*:refs/remotes/origin/*" || true
+            fi
+          }
+
+          attempt=1
+          max_attempts=3
+          while : ; do
+            if compute_range; then
+              echo "Commit range resolved on attempt ${attempt}: ${LOG_OPTS:-<full history>}"
+              break
+            fi
+
+            if [ "${attempt}" -ge "${max_attempts}" ]; then
+              echo "::error::Could not resolve a valid commit range after ${max_attempts} attempts."
+              echo "::error::The scan target is missing from the checkout (likely a force-push race); re-run this job."
+              exit 1
+            fi
+
+            echo "Commit range not resolvable yet; re-fetching refs (attempt ${attempt})."
+            refetch
+            attempt=$((attempt + 1))
+          done
+
           EXIT_CODE=0
           if [ -n "${LOG_OPTS}" ]; then
+            # shellcheck disable=SC2086
             gitleaks detect \
               --source . \
               --log-opts="${LOG_OPTS}" \
@@ -91,6 +148,6 @@ jobs:
             echo "::error::Gitleaks has detected secrets in this branch!"
             exit 1
           else
-            echo "::warning::Gitleaks encountered a git error (exit code: ${EXIT_CODE}). Scan skipped for this run."
-            exit 0
+            echo "::error::Gitleaks encountered an unexpected error (exit code: ${EXIT_CODE})."
+            exit 1
           fi
