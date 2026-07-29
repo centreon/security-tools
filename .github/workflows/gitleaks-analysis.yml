@@ -1,11 +1,12 @@
 name: gitleaks
 
-on:
-  workflow_call:
-
 concurrency:
   group: gitleaks-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  cancel-in-progress: true
+
+on:
+workflow_call:
+
 
 env:
   # Pinned gitleaks release.
