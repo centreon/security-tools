@@ -104,7 +104,7 @@ jobs:
           max_attempts=5
           while : ; do
             if compute_range; then
-              echo "::warning::Commit range resolved on attempt ${attempt}: ${LOG_OPTS:-<full history>}"
+              echo "::info::Commit range resolved on attempt ${attempt}: ${LOG_OPTS:-<full history>}"
               break
             fi
 
