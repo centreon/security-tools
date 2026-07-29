@@ -7,7 +7,6 @@ concurrency:
 on:
 workflow_call:
 
-
 env:
   # Pinned gitleaks release.
   GITLEAKS_VERSION: "8.30.1"
