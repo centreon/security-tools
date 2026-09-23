@@ -14,8 +14,10 @@ jobs:
     runs-on: ${{ github.repository_visibility != 'public' && (github.repository_owner == 'centreon' && 'centreon-security' || github.repository_owner == 'quanta-computing' && 'quanta-security') || 'ubuntu-24.04' }}
 
     steps:
-      - name: Checkout Repository
+      - name: Checkout sources
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Check dependencies type and lockfiles version
         run: |
