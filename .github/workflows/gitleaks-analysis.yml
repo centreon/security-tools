@@ -7,6 +7,8 @@ jobs:
   secret-scan:
     name: Run Gitleaks
     runs-on: ${{ github.repository_visibility != 'public' && (github.repository_owner == 'centreon' && 'centreon-security' || github.repository_owner == 'quanta-computing' && 'quanta-security') || 'ubuntu-24.04' }}
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout Repository
