@@ -9,6 +9,7 @@ jobs:
     runs-on: ${{ github.repository_visibility != 'public' && (github.repository_owner == 'centreon' && 'centreon-security' || github.repository_owner == 'quanta-computing' && 'quanta-security') || 'ubuntu-24.04' }}
     permissions:
       contents: read
+      pull-requests: read
 
     steps:
       - name: Checkout Repository
