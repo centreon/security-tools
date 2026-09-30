@@ -95,7 +95,8 @@ jobs:
 
           # Scan manifests compliance
           echo "[INFO] - Scan manifests compliance"
-          DEP_FILES=($(find ./ -type f -name "package.json"))
+          # Third-party code (node_modules, vendor) is not managed by the repository
+          DEP_FILES=($(find ./ -type f -name "package.json" -not -path "*/node_modules/*" -not -path "*/vendor/*"))
           for DEP_FILE in ${DEP_FILES[@]}; do
             DEP_DIR=$(dirname $DEP_FILE)
             echo "[INFO] - Scanning $DEP_FILE"
