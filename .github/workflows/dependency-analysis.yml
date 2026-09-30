@@ -104,8 +104,8 @@ jobs:
                   message_type "NPM is no longer allowed. Kindly replace the lockfile using PNPM. Found in **$LOC_FILE**"
                   ;;
                 "pnpm-lock.yaml")
-                  SKIP=$(compare_version)
-                  if [ "$SKIP" == "true" ] ; then continue; fi 
+                  compare_version
+                  if [ "$SKIP" == "true" ] ; then continue; fi
                   ;;
                 "")
                   message_type "A lockfile is required. No lockfile found in **$LOC_DIR**"
