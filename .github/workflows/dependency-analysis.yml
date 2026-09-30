@@ -81,6 +81,18 @@ jobs:
             fi
           }
 
+          # Check whether a parent directory holds a pnpm lockfile (workspace root)
+          function has_parent_pnpm_lockfile() {
+            local dir="$1"
+            while [ "$dir" != "." ] && [ "$dir" != "/" ]; do
+              dir=$(dirname "$dir")
+              if [ -f "$dir/pnpm-lock.yaml" ]; then
+                return 0
+              fi
+            done
+            return 1
+          }
+
           # Scan manifests compliance
           echo "[INFO] - Scan manifests compliance"
           DEP_FILES=($(find ./ -type f -name "package.json"))
@@ -107,11 +119,13 @@ jobs:
                   compare_version
                   if [ "$SKIP" == "true" ] ; then continue; fi
                   ;;
-                "")
-                  message_type "A lockfile is required. No lockfile found in **$LOC_DIR**"
-                  ;;
               esac
             done
+            if [[ $COUNT -eq 0 ]] \
+              && grep -qE '"(devD|optionalD|d)ependencies"[[:space:]]*:' "$DEP_FILE" \
+              && ! has_parent_pnpm_lockfile "$DEP_DIR"; then
+              message_type "A lockfile is required. No lockfile found in **$DEP_DIR**"
+            fi
             if [[ $COUNT -gt 1 ]]; then
               message_type "$COUNT lockfiles were found. Kindly keep only the lockfile generated with PNPM. Found in **$LOC_DIR**"
             fi
@@ -127,6 +141,8 @@ jobs:
             if grep -qF "$NAME@$VERSION" "$LOCKFILE"; then
               echo "$NAME:$VERSION was found in $LOCKFILE"
               echo "[ERROR] - $NAME:$VERSION was found in $LOCKFILE" >> "$ERROR_LOG"
+              # A compromised package always breaks the run, regardless of the enforcement date
+              FORCE_FAIL="true"
             else
               echo -n "."
             fi
