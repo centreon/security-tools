@@ -68,7 +68,7 @@ jobs:
             MIN_LOCKFILE_VERSION="8.9.9"
             LOCKFILE_VERSION=$(grep -E '^lockfileVersion:' "$LOC_FILE" \
               | awk '{print $2}' \
-              | tr -d "'\"")
+              | tr -d "'\"" || true)
             # Compare versions
             version_ge() {
               [ "$(printf '%s\n' "$1" "$2" | sort -V | head -n1)" = "$2" ]
@@ -81,9 +81,22 @@ jobs:
             fi
           }
 
+          # Check whether a parent directory holds a pnpm lockfile (workspace root)
+          function has_parent_pnpm_lockfile() {
+            local dir="$1"
+            while [ "$dir" != "." ] && [ "$dir" != "/" ]; do
+              dir=$(dirname "$dir")
+              if [ -f "$dir/pnpm-lock.yaml" ]; then
+                return 0
+              fi
+            done
+            return 1
+          }
+
           # Scan manifests compliance
           echo "[INFO] - Scan manifests compliance"
-          DEP_FILES=($(find ./ -type f -name "package.json"))
+          # Third-party code (node_modules, vendor) is not managed by the repository
+          DEP_FILES=($(find ./ -type f -name "package.json" -not -path "*/node_modules/*" -not -path "*/vendor/*"))
           for DEP_FILE in ${DEP_FILES[@]}; do
             DEP_DIR=$(dirname $DEP_FILE)
             echo "[INFO] - Scanning $DEP_FILE"
@@ -104,14 +117,16 @@ jobs:
                   message_type "NPM is no longer allowed. Kindly replace the lockfile using PNPM. Found in **$LOC_FILE**"
                   ;;
                 "pnpm-lock.yaml")
-                  SKIP=$(compare_version)
-                  if [ "$SKIP" == "true" ] ; then continue; fi 
-                  ;;
-                "")
-                  message_type "A lockfile is required. No lockfile found in **$LOC_DIR**"
+                  compare_version
+                  if [ "$SKIP" == "true" ] ; then continue; fi
                   ;;
               esac
             done
+            if [[ $COUNT -eq 0 ]] \
+              && grep -qE '"(devD|optionalD|d)ependencies"[[:space:]]*:' "$DEP_FILE" \
+              && ! has_parent_pnpm_lockfile "$DEP_DIR"; then
+              message_type "A lockfile is required. No lockfile found in **$DEP_DIR**"
+            fi
             if [[ $COUNT -gt 1 ]]; then
               message_type "$COUNT lockfiles were found. Kindly keep only the lockfile generated with PNPM. Found in **$LOC_DIR**"
             fi
@@ -127,6 +142,8 @@ jobs:
             if grep -qF "$NAME@$VERSION" "$LOCKFILE"; then
               echo "$NAME:$VERSION was found in $LOCKFILE"
               echo "[ERROR] - $NAME:$VERSION was found in $LOCKFILE" >> "$ERROR_LOG"
+              # A compromised package always breaks the run, regardless of the enforcement date
+              FORCE_FAIL="true"
             else
               echo -n "."
             fi
