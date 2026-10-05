@@ -4,8 +4,11 @@ on:
   workflow_call:
 
 env:
-  # Pinned gitleaks release.
+  # Pinned gitleaks release. Bump both together: GITLEAKS_SHA256 is the sha256
+  # of gitleaks_<version>_linux_x64.tar.gz, checked against the release's
+  # checksums file when bumping.
   GITLEAKS_VERSION: "8.30.1"
+  GITLEAKS_SHA256: "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"
 
 jobs:
   secret-scan:
@@ -13,9 +16,16 @@ jobs:
     runs-on: ${{ github.repository_visibility != 'public' && (github.repository_owner == 'centreon' && 'centreon-security' || github.repository_owner == 'quanta-computing' && 'quanta-security') || 'ubuntu-24.04' }}
     permissions:
       contents: read
-      pull-requests: read
 
     steps:
+      # pull_request_target is not compliant with the security posture: the run
+      # always fails, before anything is checked out or executed.
+      - name: Reject pull_request_target
+        if: github.event_name == 'pull_request_target'
+        run: |
+          echo "::error::pull_request_target is not allowed: it is not compliant with the security posture. Trigger the scan on pull_request."
+          exit 1
+
       - name: Checkout Repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -31,16 +41,17 @@ jobs:
           cd "$workdir"
 
           curl -sSfL -o "${ASSET}" "${BASE_URL}/${ASSET}"
-          curl -sSfL -o checksums.txt "${BASE_URL}/gitleaks_${GITLEAKS_VERSION}_checksums.txt"
 
-          # Verify integrity
-          grep " ${ASSET}\$" checksums.txt | sha256sum -c -
+          # Verify against the pinned digest, not a checksums file served
+          # from the same release as the binary.
+          echo "${GITLEAKS_SHA256}  ${ASSET}" | sha256sum -c -
 
           mkdir -p "$HOME/.local/bin"
           tar -xzf "${ASSET}" -C "$HOME/.local/bin" gitleaks
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
           "$HOME/.local/bin/gitleaks" version
+          cd / && rm -rf "$workdir"
 
       - name: Run secret scan
         env:
@@ -48,117 +59,213 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
           PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
           PUSH_BEFORE: ${{ github.event.before }}
           PUSH_AFTER: ${{ github.event.after }}
+          PUSH_REF: ${{ github.ref_name }}
+          PUSH_FULL_REF: ${{ github.ref }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          SERVER_URL: ${{ github.server_url }}
+          FETCH_TOKEN: ${{ github.token }}
         run: |
           set -u
 
-          # checkout pins the PR merge ref at trigger time, so a mid-run push can
-          # leave the head commit out of the clone. Resolving the range in a loop,
+          # The event's commit SHAs can be unreachable in the clone (e.g. force-
+          # pushed away between the event and the checkout, which then fails
+          # with "invalid revision range"). Resolve the range in a loop,
           # re-fetching between attempts, and scan only once it is valid.
+          # --text keeps a repo's .gitattributes (e.g. "* -diff") from hiding
+          # file contents from the scan.
+          ZERO_SHA="0000000000000000000000000000000000000000"
+          FULL_SCAN="--text --full-history --all"
           LOG_OPTS=""
           HEAD_SHA="${PR_HEAD_SHA}"
+          BASE_SHA="${PR_BASE_SHA}"
+          AFTER_SHA="${PUSH_AFTER}"
 
-          # Sets LOG_OPTS (empty => full scan); returns non-zero if the range is
-          # unresolvable. Validated with gitleaks' exact flags.
+          # persist-credentials: false leaves no token in .git/config, so the
+          # re-fetches below authenticate on their own. The header is set on
+          # each git process only, through env-scoped config
+          # (GIT_CONFIG_COUNT/KEY/VALUE): never written to disk, never on a
+          # command line, masked in the logs, and not exported to gitleaks.
+          FETCH_AUTH="$(printf 'x-access-token:%s' "${FETCH_TOKEN}" | base64 -w0)"
+          echo "::add-mask::${FETCH_AUTH}"
+          unset FETCH_TOKEN
+
+          fetch() {
+            GIT_CONFIG_COUNT=1 \
+            GIT_CONFIG_KEY_0="http.${SERVER_URL}/.extraheader" \
+            GIT_CONFIG_VALUE_0="AUTHORIZATION: basic ${FETCH_AUTH}" \
+              git fetch --no-tags --force origin "$@" \
+              || echo "::warning::git fetch failed: $*"
+          }
+
+          has_commit() { [ -n "$1" ] && git cat-file -e "$1^{commit}" 2>/dev/null; }
+
+          # Prints the commit a ref points to; prints nothing and fails if the
+          # ref is missing.
+          ref_commit() { git rev-parse --verify -q "$1^{commit}"; }
+
+          # Sets LOG_OPTS; returns non-zero if the range is unresolvable. The
+          # range is checked by running git log with the same --log-opts
+          # gitleaks will receive.
           compute_range() {
             case "${EVENT_NAME}" in
               pull_request)
-                git cat-file -e "${HEAD_SHA}^{commit}" 2>/dev/null || return 1
-                base="$(git merge-base "${PR_BASE_SHA}" "${HEAD_SHA}" 2>/dev/null)" || return 1
-                LOG_OPTS="--no-merges --first-parent ${base}..${HEAD_SHA}"
-                ;;
-              push)
-                if [ -n "${PUSH_BEFORE}" ] \
-                   && [ "${PUSH_BEFORE}" != "0000000000000000000000000000000000000000" ] \
-                   && git cat-file -e "${PUSH_BEFORE}^{commit}" 2>/dev/null; then
-                  # Existing branch: scan exactly the commits this push added.
-                  LOG_OPTS="--no-merges ${PUSH_BEFORE}..${PUSH_AFTER}"
-                elif base="$(git merge-base "refs/remotes/origin/${DEFAULT_BRANCH}" "${PUSH_AFTER}" 2>/dev/null)" \
-                     && [ -n "${base}" ]; then
-                  # New branch (before is the zero SHA or empty) or rewritten
-                  # history: scan only the commits unique to this branch, i.e.
-                  # since it diverged from the default branch. The shared base
-                  # history is already covered by the default branch's own scans,
-                  # so a full scan there would just re-report pre-existing,
-                  # unrelated findings. (fetch-depth: 0 makes origin/<default>
-                  # available in the clone.)
-                  LOG_OPTS="--no-merges ${base}..${PUSH_AFTER}"
+                has_commit "${HEAD_SHA}" || return 1
+                has_commit "${BASE_SHA}" || return 1
+                if base="$(git merge-base "${BASE_SHA}" "${HEAD_SHA}" 2>/dev/null)"; then
+                  # Every non-merge commit the PR brings, including commits
+                  # merged in from other branches; the base branch history is
+                  # excluded.
+                  LOG_OPTS="--text --no-merges ${base}..${HEAD_SHA}"
                 else
-                  # Default branch not resolvable (unrelated history, or the ref
-                  # is missing): fall back to a full scan rather than risk
-                  # missing anything. Over-scan is the safe direction.
-                  LOG_OPTS=""
+                  # Both commits are present but share no history: nothing to
+                  # exclude, so scan everything rather than retry in vain.
+                  echo "::notice::PR head and base share no history; scanning the full history."
+                  LOG_OPTS="${FULL_SCAN}"
                 fi
                 ;;
-              *)
-                # workflow_dispatch, etc: full scan.
-                LOG_OPTS=""
+              push)
+                # The pushed commit must be in the clone, otherwise even a full
+                # scan would miss it: retry after a re-fetch.
+                has_commit "${AFTER_SHA}" || return 1
+                if [ -n "${PUSH_BEFORE}" ] && [ "${PUSH_BEFORE}" != "${ZERO_SHA}" ] \
+                   && has_commit "${PUSH_BEFORE}"; then
+                  # Existing branch: scan the non-merge commits this push added.
+                  LOG_OPTS="--text --no-merges ${PUSH_BEFORE}..${AFTER_SHA}"
+                elif [ "${PUSH_REF}" = "${DEFAULT_BRANCH}" ]; then
+                  # Default branch created or rewritten (before is zero, empty
+                  # or force-pushed away): nothing is "unique" to it, so the
+                  # merge-base range below would be empty. Full scan.
+                  LOG_OPTS="${FULL_SCAN}"
+                elif base="$(git merge-base "refs/remotes/origin/${DEFAULT_BRANCH}" "${AFTER_SHA}" 2>/dev/null)"; then
+                  # New or rewritten branch: scan only the commits unique to it,
+                  # i.e. since it diverged from the default branch. The shared
+                  # history is assumed covered by the default branch's own push
+                  # or scheduled scans, so a full scan would just re-report
+                  # pre-existing findings. (fetch-depth: 0 makes origin/<default>
+                  # available.)
+                  LOG_OPTS="--text --no-merges ${base}..${AFTER_SHA}"
+                else
+                  # Default branch ref missing or unrelated history: full scan.
+                  # Over-scan is the safe direction.
+                  LOG_OPTS="${FULL_SCAN}"
+                fi
+                ;;
+              workflow_dispatch|schedule)
+                LOG_OPTS="${FULL_SCAN}"
                 ;;
             esac
 
-            if [ -n "${LOG_OPTS}" ]; then
-              git log ${LOG_OPTS} >/dev/null 2>&1 || return 1
-            fi
+            git log ${LOG_OPTS} >/dev/null 2>&1 || return 1
             return 0
           }
 
-          # Fetch the refs the range needs (actions/checkout can't be re-run in a
-          # loop). Falls back to the live PR tip if the head SHA was force-pushed away.
+          # actions/checkout can't be re-run in a loop, so re-fetch only what
+          # the range needs: the PR head and base branch plus the PR head/base
+          # SHAs (pull_request), or all branches plus the pushed commit (push),
+          # if the server still serves them. A missing push "before" SHA is
+          # handled by compute_range, not here. Only the history is refreshed;
+          # gitleaks' config and ignore files keep coming from the initial
+          # checkout. If an event SHA can no longer be fetched (force-pushed
+          # away), fall back to the live tip of its branch, so the scan covers
+          # what the branch now holds.
           refetch() {
             if [ "${EVENT_NAME}" = "pull_request" ] && [ -n "${PR_NUMBER}" ]; then
-              git fetch --no-tags --force origin \
-                "+refs/pull/${PR_NUMBER}/head:refs/remotes/origin/pr/${PR_NUMBER}" || true
-              if ! git cat-file -e "${HEAD_SHA}^{commit}" 2>/dev/null; then
-                HEAD_SHA="$(git rev-parse "refs/remotes/origin/pr/${PR_NUMBER}" 2>/dev/null || echo "${HEAD_SHA}")"
+              fetch "+refs/pull/${PR_NUMBER}/head:refs/remotes/origin/pr/${PR_NUMBER}" \
+                    "+refs/heads/${PR_BASE_REF}:refs/remotes/origin/${PR_BASE_REF}"
+              has_commit "${HEAD_SHA}" || fetch "${HEAD_SHA}"
+              has_commit "${BASE_SHA}" || fetch "${BASE_SHA}"
+              if ! has_commit "${HEAD_SHA}" \
+                 && live="$(ref_commit "refs/remotes/origin/pr/${PR_NUMBER}")"; then
+                echo "::warning::PR head ${HEAD_SHA} is gone; scanning the live PR tip ${live}."
+                HEAD_SHA="${live}"
+              fi
+              if ! has_commit "${BASE_SHA}" \
+                 && live="$(ref_commit "refs/remotes/origin/${PR_BASE_REF}")"; then
+                echo "::warning::PR base ${BASE_SHA} is gone; using the live ${PR_BASE_REF} tip ${live}."
+                BASE_SHA="${live}"
               fi
             else
-              git fetch --no-tags --force origin "+refs/heads/*:refs/remotes/origin/*" || true
+              fetch "+refs/heads/*:refs/remotes/origin/*"
+              if [ -n "${AFTER_SHA}" ] && ! has_commit "${AFTER_SHA}"; then
+                fetch "${AFTER_SHA}"
+                # Live-tip fallback for branches only: refs/remotes/origin/ holds
+                # branches, so a tag push must not resolve to a same-name branch.
+                if ! has_commit "${AFTER_SHA}" \
+                   && [ "${PUSH_FULL_REF}" = "refs/heads/${PUSH_REF}" ] \
+                   && live="$(ref_commit "refs/remotes/origin/${PUSH_REF}")"; then
+                  echo "::warning::Pushed commit ${AFTER_SHA} is gone; scanning the live ${PUSH_REF} tip ${live}."
+                  AFTER_SHA="${live}"
+                fi
+              fi
             fi
           }
+
+          case "${EVENT_NAME}" in
+            pull_request|push|workflow_dispatch|schedule) ;;
+            pull_request_target)
+              # Defense in depth: the first step already rejects this event.
+              echo "::error::pull_request_target is not allowed: it is not compliant with the security posture. Trigger the scan on pull_request."
+              exit 1
+              ;;
+            *)
+              # Fail closed: for other events (e.g. merge_group) the checkout
+              # may not hold the commits under test.
+              echo "::error::Unsupported event '${EVENT_NAME}' (supported: pull_request, push, workflow_dispatch, schedule); failing the job."
+              exit 1
+              ;;
+          esac
+
+          if [ "${EVENT_NAME}" = "push" ] && [ "${PUSH_AFTER}" = "${ZERO_SHA}" ]; then
+            echo "::notice::${PUSH_REF} was deleted; nothing to scan."
+            exit 0
+          fi
 
           attempt=1
           max_attempts=5
           while : ; do
             if compute_range; then
-              echo "::notice::Commit range resolved on attempt ${attempt}: ${LOG_OPTS:-<full history>}"
+              echo "::notice::Commit range resolved on attempt ${attempt}: ${LOG_OPTS}"
               break
             fi
 
             if [ "${attempt}" -ge "${max_attempts}" ]; then
-              echo "::error::Could not resolve a valid commit range after ${max_attempts} attempts. Skipping"
-              echo "::error::The scan target is missing from the checkout (likely a force-push race); re-run this job. Skipping"
+              echo "::error::Could not resolve a valid commit range after ${max_attempts} attempts; failing the job."
+              echo "::error::Check the git fetch warnings above. If there are none, the event's commits and their branch tip are no longer reachable (branch deleted or history rewritten): push a new commit to re-trigger the scan."
               exit 1
             fi
 
-            echo "Commit range not resolvable yet; re-fetching refs (attempt ${attempt})."
+            delay=$((attempt * 5))
+            echo "Commit range not resolvable yet; re-fetching refs in ${delay}s (attempt ${attempt}/${max_attempts})."
+            sleep "${delay}"
             refetch
             attempt=$((attempt + 1))
           done
 
+          # --exit-code=2 separates "leaks found" (2) from gitleaks errors
+          # (1, e.g. a broken .gitleaks.toml), which fail closed below.
           EXIT_CODE=0
-          if [ -n "${LOG_OPTS}" ]; then
-            gitleaks detect \
-              --source . \
-              --log-opts="${LOG_OPTS}" \
-              --exit-code=2 \
-              --redact \
-              --verbose || EXIT_CODE=$?
-          else
-            gitleaks detect \
-              --source . \
-              --exit-code=2 \
-              --redact \
-              --verbose || EXIT_CODE=$?
-          fi
+          gitleaks detect \
+            --source . \
+            --log-opts="${LOG_OPTS}" \
+            --exit-code=2 \
+            --redact \
+            --verbose || EXIT_CODE=$?
 
           if [ "${EXIT_CODE}" -eq 0 ]; then
             echo "No secrets found."
           elif [ "${EXIT_CODE}" -eq 2 ]; then
-            echo "::error::Gitleaks has detected secrets in this branch!"
+            if [ "${LOG_OPTS}" = "${FULL_SCAN}" ]; then
+              echo "::error::Gitleaks has detected secrets in the repository history (all fetched refs)!"
+            else
+              echo "::error::Gitleaks has detected secrets in the scanned commits!"
+            fi
             exit 1
           else
-            echo "::error::Gitleaks encountered an unexpected error (exit code: ${EXIT_CODE})."
-            exit 0
+            # Fail closed: a scan that did not run (e.g. a broken .gitleaks.toml)
+            # must not pass the gate.
+            echo "::error::Gitleaks failed to run (exit code: ${EXIT_CODE}); the scan did not complete, failing the job."
+            exit 1
           fi
