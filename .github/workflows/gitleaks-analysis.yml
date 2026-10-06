@@ -12,10 +12,19 @@ jobs:
       pull-requests: read
 
     steps:
+      # Pull requests only scan their own commits: fetch them plus the merge and base commits, full history otherwise
+      - name: Compute fetch depth
+        id: fetch-depth
+        env:
+          PR_COMMITS: ${{ github.event.pull_request.commits }}
+        run: |
+          echo "value=$(( ${PR_COMMITS:-0} > 0 ? PR_COMMITS + 2 : 0 ))" >> "$GITHUB_OUTPUT"
+        shell: bash
+
       - name: Checkout Repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 0
+          fetch-depth: ${{ steps.fetch-depth.outputs.value }}
           persist-credentials: false
 
       - name: Run secret scan
