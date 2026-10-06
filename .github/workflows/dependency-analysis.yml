@@ -136,50 +136,25 @@ jobs:
           # Scan manifests for blacklisted dependencies
           ##
 
-          function checkPnpmLockfile() {
-            # Find dependency formated as
-            # "name@version:"
-            if grep -qF "$NAME@$VERSION" "$LOCKFILE"; then
-              echo "$NAME:$VERSION was found in $LOCKFILE"
-              echo "[ERROR] - $NAME:$VERSION was found in $LOCKFILE" >> "$ERROR_LOG"
-              # A compromised package always breaks the run, regardless of the enforcement date
-              FORCE_FAIL="true"
-            else
-              echo -n "."
-            fi
-          }
-
-          function checkManifest() {
-            COUNT=0
-            echo "[INFO] - Testing manifest $LOCKFILE"
-            manifest_type=$(basename "$LOCKFILE")
-
-            while IFS=':' read -r NAME VERSION; do
-              # ignore empty and commented lines
-              [[ -z "${NAME// }" ]] && continue
-              [[ "$NAME" =~ ^# ]] && continue
-
-              case "$manifest_type" in
-                "pnpm-lock.yaml")
-                  checkPnpmLockfile
-                  ;;
-                "*")
-                  message_type "Dependency manager not managed. Found in $LOCKFILE" >> "$ERROR_LOG"
-              esac
-
-              COUNT=$((COUNT+1))
-            done < "$DEP_LIST"
-            echo "[INFO] - Scanned $COUNT IOC"
-          }
-
           # Check blacklist
           echo "[INFO] - Scan manifests for blacklisted dependencies"
           DEP_LIST="compromised-packages.txt"
           wget https://raw.githubusercontent.com/centreon/security-tools/main/blacklist/"$DEP_LIST"
 
+          # "name:version" lines become "name@version" fixed strings, matched in a single grep per lockfile
+          IOC_PATTERNS="ioc-patterns.txt"
+          grep -vE '^[[:space:]]*(#|$)' "$DEP_LIST" | sed 's/:/@/' > "$IOC_PATTERNS"
+          echo "[INFO] - Loaded $(wc -l < "$IOC_PATTERNS") IOC"
+
           LOCKFILES=($(find ./ -type f -name "pnpm-lock.yaml"))
           for LOCKFILE in "${LOCKFILES[@]}"; do
-            checkManifest "$LOCKFILE"
+            echo "[INFO] - Testing manifest $LOCKFILE"
+            while read -r MATCH; do
+              echo "${MATCH%@*}:${MATCH##*@} was found in $LOCKFILE"
+              echo "[ERROR] - ${MATCH%@*}:${MATCH##*@} was found in $LOCKFILE" >> "$ERROR_LOG"
+              # A compromised package always breaks the run, regardless of the enforcement date
+              FORCE_FAIL="true"
+            done < <(grep -oF -f "$IOC_PATTERNS" "$LOCKFILE" | sort -u)
           done
 
           # Quality gate
