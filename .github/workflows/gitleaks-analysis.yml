@@ -27,7 +27,38 @@ jobs:
           fetch-depth: ${{ steps.fetch-depth.outputs.value }}
           persist-credentials: false
 
+      # gitleaks-action only lists the first 30 pull request commits (gitleaks/gitleaks-action#187), so pull requests run gitleaks directly
+      - name: Run secret scan on pull request commits
+        if: github.event_name == 'pull_request'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_VERSION: "8.24.3"
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          case "$RUNNER_ARCH" in
+            X64) ARCH="x64"; CHECKSUM="9991e0b2903da4c8f6122b5c3186448b927a5da4deef1fe45271c3793f4ee29c" ;;
+            ARM64) ARCH="arm64"; CHECKSUM="5f2edbe1f49f7b920f9e06e90759947d3c5dfc16f752fb93aaafc17e9d14cf07" ;;
+            *) echo "::error::Unsupported runner architecture: $RUNNER_ARCH"; exit 1 ;;
+          esac
+          ARCHIVE="$RUNNER_TEMP/gitleaks.tar.gz"
+          curl -fsSL -o "$ARCHIVE" "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_${ARCH}.tar.gz"
+          echo "$CHECKSUM  $ARCHIVE" | sha256sum -c -
+          tar -xzf "$ARCHIVE" -C "$RUNNER_TEMP" gitleaks
+
+          # Oldest pull request commit, the API returns them in ascending order
+          FIRST_SHA=$(curl -fsSL -H "Authorization: Bearer $GITHUB_TOKEN" -H "Accept: application/vnd.github+json" \
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/commits?per_page=1" | jq -r '.[0].sha')
+          if [[ ! "$FIRST_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::Unable to get the first commit of pull request #$PR_NUMBER"
+            exit 1
+          fi
+
+          "$RUNNER_TEMP/gitleaks" git --redact -v --log-opts="--no-merges --first-parent ${FIRST_SHA}^..${HEAD_SHA}"
+        shell: bash
+
       - name: Run secret scan
+        if: github.event_name != 'pull_request'
         uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
