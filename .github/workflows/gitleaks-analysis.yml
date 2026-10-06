@@ -12,19 +12,14 @@ jobs:
       pull-requests: read
 
     steps:
-      # Pull requests only scan their own commits: fetch them plus the merge and base commits, full history otherwise
-      - name: Compute fetch depth
-        id: fetch-depth
-        env:
-          PR_COMMITS: ${{ github.event.pull_request.commits }}
-        run: |
-          echo "value=$(( ${PR_COMMITS:-0} > 0 ? PR_COMMITS + 2 : 0 ))" >> "$GITHUB_OUTPUT"
-        shell: bash
-
+      # Pull requests fetch the full history without file contents and only check out the gitleaks config files
       - name: Checkout Repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: ${{ steps.fetch-depth.outputs.value }}
+          fetch-depth: 0
+          filter: ${{ github.event_name == 'pull_request' && 'blob:none' || '' }}
+          sparse-checkout: ${{ github.event_name == 'pull_request' && '/.gitleaks*' || '' }}
+          sparse-checkout-cone-mode: false
           persist-credentials: false
 
       # gitleaks-action only lists the first 30 pull request commits (gitleaks/gitleaks-action#187), so pull requests run gitleaks directly
@@ -53,8 +48,21 @@ jobs:
             echo "::error::Unable to get the first commit of pull request #$PR_NUMBER"
             exit 1
           fi
+          RANGE="${FIRST_SHA}^..${HEAD_SHA}"
 
-          "$RUNNER_TEMP/gitleaks" git --redact -v --log-opts="--no-merges --first-parent ${FIRST_SHA}^..${HEAD_SHA}"
+          # File contents of the scanned changes (submodules excluded), fetched in one batch since the checkout is blobless
+          git log --no-merges --first-parent --format= --raw --no-abbrev "$RANGE" \
+            | awk '$1 != ":160000" { print $3 } $2 != "160000" { print $4 }' \
+            | grep -E '^[0-9a-f]{40}$' | grep -v '^0\{40\}$' | sort -u > "$RUNNER_TEMP/blobs.txt"
+          if [ -s "$RUNNER_TEMP/blobs.txt" ]; then
+            AUTH_HEADER="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GITHUB_TOKEN" | base64 -w0)"
+            echo "::add-mask::$AUTH_HEADER"
+            GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0="http.${GITHUB_SERVER_URL}/.extraheader" GIT_CONFIG_VALUE_0="$AUTH_HEADER" \
+              git -c fetch.negotiationAlgorithm=noop fetch --quiet --no-tags --no-write-fetch-head --recurse-submodules=no \
+              --filter=blob:none --stdin origin < "$RUNNER_TEMP/blobs.txt"
+          fi
+
+          "$RUNNER_TEMP/gitleaks" git --redact -v --log-opts="--no-merges --first-parent $RANGE"
         shell: bash
 
       - name: Run secret scan
