@@ -23,7 +23,7 @@ jobs:
       - name: Reject pull_request_target
         if: github.event_name == 'pull_request_target'
         run: |
-          echo "::error::pull_request_target is not allowed: it is not compliant with the security posture. Trigger the scan on pull_request."
+          echo "::error::pull_request_target is not allowed"
           exit 1
 
       # Pull requests only scan their own commits: fetch them plus the merge and base commits, full history otherwise
@@ -115,6 +115,34 @@ jobs:
           # ref is missing.
           ref_commit() { git rev-parse --verify -q "$1^{commit}"; }
 
+          # Pull requests are checked out shallow (see "Compute fetch depth").
+          # A boundary commit looks parentless, so gitleaks would scan its
+          # whole tree and report every pre-existing secret: it must never be
+          # in the scanned range.
+          SHALLOW_FILE="$(git rev-parse --git-path shallow)"
+          is_shallow() { [ "$(git rev-parse --is-shallow-repository)" = "true" ]; }
+          range_hits_boundary() {
+            [ -s "${SHALLOW_FILE}" ] \
+              && git log --format=%H ${LOG_OPTS} 2>/dev/null | grep -qFxf "${SHALLOW_FILE}"
+          }
+
+          # Deepens the shallow PR history, doubling the step on each round
+          # (32 to 1024 commits), then unshallows as a last resort. Fails once
+          # out of rounds, or if a fetch brought nothing (fetch() never fails:
+          # compare the boundaries instead).
+          deepen() { # round
+            local before
+            before="$(cat "${SHALLOW_FILE}" 2>/dev/null)"
+            if [ "$1" -lt 6 ]; then
+              fetch --deepen="$((32 << $1))" "${BASE_SHA}" "${HEAD_SHA}"
+            elif [ "$1" -eq 6 ]; then
+              fetch --unshallow "${BASE_SHA}" "${HEAD_SHA}"
+            else
+              return 1
+            fi
+            [ "$(cat "${SHALLOW_FILE}" 2>/dev/null)" != "${before}" ]
+          }
+
           # Sets LOG_OPTS; returns non-zero if the range is unresolvable. The
           # range is checked by running git log with the same --log-opts
           # gitleaks will receive.
@@ -123,17 +151,29 @@ jobs:
               pull_request)
                 has_commit "${HEAD_SHA}" || return 1
                 has_commit "${BASE_SHA}" || return 1
-                if base="$(git merge-base "${BASE_SHA}" "${HEAD_SHA}" 2>/dev/null)"; then
-                  # Every non-merge commit the PR brings, including commits
-                  # merged in from other branches; the base branch history is
-                  # excluded.
-                  LOG_OPTS="--text --no-merges ${base}..${HEAD_SHA}"
-                else
-                  # Both commits are present but share no history: nothing to
-                  # exclude, so scan everything rather than retry in vain.
-                  echo "::notice::PR head and base share no history; scanning the full history."
-                  LOG_OPTS="${FULL_SCAN}"
-                fi
+                round=0
+                while : ; do
+                  if base="$(git merge-base "${BASE_SHA}" "${HEAD_SHA}" 2>/dev/null)"; then
+                    # Every non-merge commit the PR brings, including commits
+                    # merged in from other branches; the base branch history is
+                    # excluded.
+                    LOG_OPTS="--text --no-merges ${base}..${HEAD_SHA}"
+                    range_hits_boundary || break
+                  elif ! is_shallow; then
+                    # Both commits are present but share no history: nothing to
+                    # exclude, so scan everything rather than retry in vain.
+                    echo "::notice::PR head and base share no history; scanning the full history."
+                    LOG_OPTS="${FULL_SCAN}"
+                    break
+                  fi
+                  # The base branch moved past the fetched depth since the PR
+                  # forked: deepen until the fork point is reachable from both
+                  # sides. If deepening fails, retry after a re-fetch.
+                  LOG_OPTS=""
+                  echo "Shallow history does not reach the PR fork point yet; deepening (round $((round + 1)))."
+                  deepen "${round}" || return 1
+                  round=$((round + 1))
+                done
                 ;;
               push)
                 # The pushed commit must be in the clone, otherwise even a full
@@ -153,8 +193,8 @@ jobs:
                   # i.e. since it diverged from the default branch. The shared
                   # history is assumed covered by the default branch's own push
                   # or scheduled scans, so a full scan would just re-report
-                  # pre-existing findings. (fetch-depth: 0 makes origin/<default>
-                  # available.)
+                  # pre-existing findings. (Push events get a full clone,
+                  # fetch-depth 0, so origin/<default> is available.)
                   LOG_OPTS="--text --no-merges ${base}..${AFTER_SHA}"
                 else
                   # Default branch ref missing or unrelated history: full scan.
@@ -216,7 +256,7 @@ jobs:
             pull_request|push|workflow_dispatch|schedule) ;;
             pull_request_target)
               # Defense in depth: the first step already rejects this event.
-              echo "::error::pull_request_target is not allowed: it is not compliant with the security posture. Trigger the scan on pull_request."
+              echo "::error::pull_request_target is not allowed"
               exit 1
               ;;
             *)
