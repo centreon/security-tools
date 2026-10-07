@@ -12,34 +12,20 @@ jobs:
       pull-requests: read
 
     steps:
-      # Pull requests fetch the full history without file contents and only check out the gitleaks config files
+      # Pull requests only scan their own commits: fetch them plus the merge and base commits, full history otherwise
+      - name: Compute fetch depth
+        id: fetch-depth
+        env:
+          PR_COMMITS: ${{ github.event.pull_request.commits }}
+        run: |
+          echo "value=$(( ${PR_COMMITS:-0} > 0 ? PR_COMMITS + 2 : 0 ))" >> "$GITHUB_OUTPUT"
+        shell: bash
+
       - name: Checkout Repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 0
-          filter: ${{ github.event_name == 'pull_request' && 'blob:none' || '' }}
-          sparse-checkout: ${{ github.event_name == 'pull_request' && '/.gitleaks*' || '' }}
-          sparse-checkout-cone-mode: false
+          fetch-depth: ${{ steps.fetch-depth.outputs.value }}
           persist-credentials: false
-
-      # The checkout is blobless and credentials are not persisted: fetch the file contents of the pull request changes in one batch
-      - name: Fetch pull request changes
-        if: github.event_name == 'pull_request'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          # HEAD is the pull request merge commit: HEAD^1 is the base, HEAD^2 the pull request head (submodules excluded)
-          git log --no-merges --format= --raw --no-abbrev HEAD^1..HEAD^2 \
-            | awk '$1 != ":160000" { print $3 } $2 != "160000" { print $4 }' \
-            | grep -E '^[0-9a-f]{40}$' | grep -v '^0\{40\}$' | sort -u > "$RUNNER_TEMP/blobs.txt"
-          if [ -s "$RUNNER_TEMP/blobs.txt" ]; then
-            AUTH_HEADER="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GITHUB_TOKEN" | base64 -w0)"
-            echo "::add-mask::$AUTH_HEADER"
-            GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0="http.${GITHUB_SERVER_URL}/.extraheader" GIT_CONFIG_VALUE_0="$AUTH_HEADER" \
-              git -c fetch.negotiationAlgorithm=noop fetch --quiet --no-tags --no-write-fetch-head --recurse-submodules=no \
-              --filter=blob:none --stdin origin < "$RUNNER_TEMP/blobs.txt"
-          fi
-        shell: bash
 
       - name: Run secret scan
         uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
