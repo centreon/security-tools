@@ -16,7 +16,7 @@ Because consumers pin to `@main`, changes to workflows and the blocklist take ef
 
 ### Reusable workflows (`.github/workflows/`)
 
-- `security-checks.yml` — the **orchestrator**. Runs on PR/push to `main`, on a weekday cron, and on demand. It calls the two `workflow_call` workflows below (the secret scan on PR and on demand only). This is also the pattern downstream repos copy: `uses: centreon/security-tools/.github/workflows/<file>.yml@main`.
+- `security-checks.yml` — the **orchestrator**. Runs on PRs to `main` and on demand. It calls the two `workflow_call` workflows below. This is also the pattern downstream repos copy: `uses: centreon/security-tools/.github/workflows/<file>.yml@main`.
 - `dependency-analysis.yml` — `workflow_call` + runs on PR. Two responsibilities:
   1. **Lockfile compliance** — enforces PNPM only (rejects `yarn.lock` / `package-lock.json`), requires a lockfile, and enforces a minimum `lockfileVersion` (`8.9.9`).
   2. **Blocklist scan** — downloads `compromised-packages.txt` from `main` and greps every `pnpm-lock.yaml` for `name@version` matches.

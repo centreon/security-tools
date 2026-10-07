@@ -8,18 +8,11 @@ on:
   pull_request:
     branches:
       - main
-  push:
-    branches:
-      - main
   workflow_dispatch:
-  schedule:
-    - cron: 0 1 * * 1-5
 
 jobs:
   dependency-scan:
     uses: centreon/security-tools/.github/workflows/dependency-analysis.yml@main
 
-  # The secret scan only supports pull_request and workflow_dispatch.
   secrets-scan:
-    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     uses: centreon/security-tools/.github/workflows/gitleaks-analysis.yml@main
