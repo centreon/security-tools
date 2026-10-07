@@ -20,7 +20,7 @@ Because consumers pin to `@main`, changes to workflows and the blocklist take ef
 - `dependency-analysis.yml` — `workflow_call` + runs on PR. Two responsibilities:
   1. **Lockfile compliance** — enforces PNPM only (rejects `yarn.lock` / `package-lock.json`), requires a lockfile, and enforces a minimum `lockfileVersion` (`8.9.9`).
   2. **Blocklist scan** — downloads `compromised-packages.txt` from `main` and greps every `pnpm-lock.yaml` for `name@version` matches.
-- `gitleaks-analysis.yml` — `workflow_call`. On pull requests, checks out the full history without file contents (`filter: blob:none`), batch-fetches the contents of the PR changes and runs a checksum-pinned gitleaks binary on the PR commits, since `gitleaks/gitleaks-action` only lists the first 30 PR commits; other events run `gitleaks/gitleaks-action` on the full history.
+- `gitleaks-analysis.yml` — `workflow_call`. Runs `gitleaks/gitleaks-action`. On pull requests, the full history is checked out without file contents (`filter: blob:none`) and the contents of the PR changes are batch-fetched before the scan.
 
 **Warn-then-enforce gating** (in `dependency-analysis.yml`): findings are reported as `[WARNING]` until a deadline, after which they become `[ERROR]` and fail the build. Controlled by two repository-level GitHub variables:
 - `OVERRIDE_DEPENDENCY_ENFORCEMENT_DATE` — the date enforcement begins.
