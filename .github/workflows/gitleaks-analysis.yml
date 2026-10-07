@@ -73,8 +73,6 @@ jobs:
           PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
           PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
-          PUSH_BEFORE: ${{ github.event.before }}
-          PUSH_AFTER: ${{ github.event.after }}
           SERVER_URL: ${{ github.server_url }}
           FETCH_TOKEN: ${{ github.token }}
         run: |
@@ -85,21 +83,18 @@ jobs:
           # whether or not they are also on other branches. No branch name
           # is assumed:
           #   pull_request: base..head, the commits not on the PR base.
-          #   push to an existing branch: before..after, the pushed commits.
-          #   push creating a branch (or whose "before" is gone),
-          #   workflow_dispatch, schedule: no destination nor "before" to
-          #   exclude, so the ref's whole history.
+          #   workflow_dispatch: no destination to exclude, so the ref's
+          #   whole history.
           # The event's commit SHAs can be unreachable in the clone (e.g.
           # force-pushed away between the event and the checkout, which then
           # fails with "invalid revision range"). Resolve the range in a loop,
           # re-fetching between attempts, and scan only once it is valid.
           # --text keeps a repo's .gitattributes (e.g. "* -diff") from hiding
           # file contents from the scan.
-          ZERO_SHA="0000000000000000000000000000000000000000"
           LOG_OPTS=""
           HEAD_SHA="${PR_HEAD_SHA}"
           BASE_SHA="${PR_BASE_SHA}"
-          TIP_SHA="${PUSH_AFTER:-${EVENT_SHA}}"
+          TIP_SHA="${EVENT_SHA}"
 
           # persist-credentials: false leaves no token in .git/config, so the
           # re-fetches below authenticate on their own. The header is set on
@@ -175,28 +170,12 @@ jobs:
                   round=$((round + 1))
                 done
                 ;;
-              push|workflow_dispatch|schedule)
+              workflow_dispatch)
                 # The tip must be in the clone, otherwise the scan would miss
-                # it: retry after a re-fetch. Push and other events get a full
-                # clone (fetch-depth 0).
+                # it: retry after a re-fetch. The dispatch gets a full clone
+                # (fetch-depth 0).
                 has_commit "${TIP_SHA}" || return 1
-                if [ "${EVENT_NAME}" = "push" ] && [ -n "${PUSH_BEFORE}" ] \
-                   && [ "${PUSH_BEFORE}" != "${ZERO_SHA}" ]; then
-                  # A force-push leaves "before" out of the clone: fetch it once
-                  # while the server still serves it.
-                  if ! has_commit "${PUSH_BEFORE}" && [ -z "${BEFORE_FETCHED:-}" ]; then
-                    BEFORE_FETCHED=1
-                    fetch "${PUSH_BEFORE}"
-                  fi
-                  if has_commit "${PUSH_BEFORE}"; then
-                    LOG_OPTS="--text --no-merges ${PUSH_BEFORE}..${TIP_SHA}"
-                  else
-                    echo "::notice::Commit ${PUSH_BEFORE} (before the push) is gone; scanning the whole history of ${REF_NAME}."
-                    LOG_OPTS="--text --no-merges ${TIP_SHA}"
-                  fi
-                else
-                  LOG_OPTS="--text --no-merges ${TIP_SHA}"
-                fi
+                LOG_OPTS="--text --no-merges ${TIP_SHA}"
                 ;;
             esac
 
@@ -206,11 +185,10 @@ jobs:
 
           # actions/checkout can't be re-run in a loop, so re-fetch only what
           # the range needs: the PR head and base branch plus the PR head/base
-          # SHAs (pull_request), or all branches plus the tip commit (other
-          # events), if the server still serves them. A missing push "before"
-          # SHA is handled by compute_range, not here. Only the history is
-          # refreshed; gitleaks' config and ignore files keep coming from the
-          # initial checkout. If an event SHA can no longer be fetched
+          # SHAs (pull_request), or all branches plus the dispatched commit
+          # (workflow_dispatch), if the server still serves them. Only the
+          # history is refreshed; gitleaks' config and ignore files keep
+          # coming from the initial checkout. If an event SHA can no longer be fetched
           # (force-pushed away), fall back to the live tip of its branch, so
           # the scan covers what the branch now holds.
           refetch() {
@@ -246,24 +224,19 @@ jobs:
           }
 
           case "${EVENT_NAME}" in
-            pull_request|push|workflow_dispatch|schedule) ;;
+            pull_request|workflow_dispatch) ;;
             pull_request_target)
               # Defense in depth: the first step already rejects this event.
               echo "::error::pull_request_target is not allowed"
               exit 1
               ;;
             *)
-              # Fail closed: for other events (e.g. merge_group) the checkout
-              # may not hold the commits under test.
-              echo "::error::Unsupported event '${EVENT_NAME}' (supported: pull_request, push, workflow_dispatch, schedule); failing the job."
+              # Fail closed: other events (push, schedule, merge_group…) are
+              # not supported.
+              echo "::error::Unsupported event '${EVENT_NAME}' (supported: pull_request, workflow_dispatch); failing the job."
               exit 1
               ;;
           esac
-
-          if [ "${EVENT_NAME}" = "push" ] && [ "${PUSH_AFTER}" = "${ZERO_SHA}" ]; then
-            echo "::notice::${REF_NAME} was deleted; nothing to scan."
-            exit 0
-          fi
 
           attempt=1
           max_attempts=5
@@ -275,7 +248,7 @@ jobs:
 
             if [ "${attempt}" -ge "${max_attempts}" ]; then
               echo "::error::Could not resolve a valid commit range after ${max_attempts} attempts; failing the job."
-              echo "::error::Check the git fetch warnings above. If there are none, the event's commits and their branch tip are no longer reachable (branch deleted or history rewritten): push a new commit to re-trigger the scan."
+              echo "::error::Check the git fetch warnings above. If there are none, the event's commits and their branch tip are no longer reachable (branch deleted or history rewritten): push a new commit or re-run the dispatch."
               exit 1
             fi
 
