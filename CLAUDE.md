@@ -28,7 +28,7 @@ Because consumers pin to `@main`, changes to workflows and the blocklist take ef
 
 Findings accumulate in `error_log.txt`, which is posted back to the PR as a sticky comment via `marocchino/sticky-pull-request-comment`. The job only fails if `fail_the_build=true` (set when enforcement is active and findings exist).
 
-**Self-hosted runner selection**: jobs use a conditional `runs-on` that picks a per-org self-hosted runner only for **private** repos — `centreon-security` for the `centreon` org, `quanta-security` for the `quanta-computing` org — and falls back to `ubuntu-24.04` for public repos or any other owner. The same expression is used in both `dependency-analysis.yml` and `gitleaks-analysis.yml`; keep them in sync when editing.
+**Self-hosted runner selection**: jobs use a conditional `runs-on` that picks a per-org self-hosted runner only for **private** repos — for the `centreon` org, `centreon-ubuntu-26.04-small` in `gitleaks-analysis.yml` and `centreon-ubuntu-26.04-slim` in `dependency-analysis.yml`; `quanta-security` for the `quanta-computing` org — and falls back to `ubuntu-26.04` for public repos or any other owner. Apart from the `centreon` runner, the expression is the same in both workflows; keep them in sync when editing.
 
 ### The blocklist (`blacklist/compromised-packages.txt`)
 
