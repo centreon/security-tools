@@ -42,8 +42,6 @@ jobs:
           persist-credentials: false
 
       - name: Install Gitleaks
-        env:
-          API_TOKEN: ${{ github.token }}
         run: |
           set -o pipefail
 
@@ -55,22 +53,26 @@ jobs:
 
           VERSION="${GITLEAKS_VERSION}"
           if [ "${VERSION}" = "latest" ]; then
-            # The job token lifts the anonymous API rate limit, shared by every
-            # job behind the same egress IP. It goes through curl's config on
-            # stdin, never on its command line.
+            # Read the public releases feed: no token, no API rate limit. Its
+            # <updated> date is at or after the publication date, so the
+            # 4-day delay is never shortened. Drafts are not in the feed, and
+            # only vX.Y.Z tags are kept, which leaves pre-releases out.
             cutoff="$(date -u -d '-4 days' +%Y-%m-%dT%H:%M:%SZ)"
-            VERSION="$(printf 'header = "Authorization: Bearer %s"\n' "${API_TOKEN}" \
-              | curl -fsSL --retry 3 -K - "https://api.github.com/repos/gitleaks/gitleaks/releases?per_page=30" \
-              | jq -r --arg cutoff "${cutoff}" '.[]
-                  | select((.draft or .prerelease | not) and .published_at <= $cutoff and (.tag_name | test("^v[0-9]+\\.[0-9]+\\.[0-9]+$")))
-                  | .tag_name | ltrimstr("v")' \
+            VERSION="$(curl -fsSL --retry 3 "https://github.com/gitleaks/gitleaks/releases.atom" \
+              | python3 -I -c '
+          import re, sys, xml.etree.ElementTree as ET
+          ns = {"a": "http://www.w3.org/2005/Atom"}
+          for entry in ET.parse(sys.stdin).getroot().findall("a:entry", ns):
+              tag = entry.findtext("a:id", "", ns).rsplit("/", 1)[-1]
+              if re.fullmatch(r"v[0-9]+\.[0-9]+\.[0-9]+", tag) and entry.findtext("a:updated", "", ns) <= sys.argv[1]:
+                  print(tag[1:])
+          ' "${cutoff}" \
               | sort -V | tail -1)" || VERSION=""
             if [ -z "${VERSION}" ]; then
-              echo "::error::Could not resolve the latest gitleaks release from the GitHub API."
+              echo "::error::Could not resolve the latest gitleaks release from its releases feed."
               exit 1
             fi
           fi
-          unset API_TOKEN
 
           # Some runners (e.g. centreon-ubuntu-26.04-small) ship gitleaks, built
           # with the same rule: keep it when it is the expected version,
