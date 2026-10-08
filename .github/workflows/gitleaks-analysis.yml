@@ -9,6 +9,8 @@ env:
   # published at least 4 days before the run. Set a version (e.g. "8.30.1")
   # to pin it.
   GITLEAKS_VERSION: "latest"
+  # Installed when "latest" cannot be resolved, so the scan still runs.
+  GITLEAKS_FALLBACK_VERSION: "8.30.1"
 
 jobs:
   secret-scan:
@@ -69,8 +71,10 @@ jobs:
           ' "${cutoff}" \
               | sort -V | tail -1)" || VERSION=""
             if [ -z "${VERSION}" ]; then
-              echo "::error::Could not resolve the latest gitleaks release from its releases feed."
-              exit 1
+              # Do not block the run: fall back to a known release, still
+              # verified against its checksums file below.
+              VERSION="${GITLEAKS_FALLBACK_VERSION}"
+              echo "::warning::gitleaks-version-fallback: could not resolve the latest gitleaks release from its releases feed; using ${VERSION}."
             fi
           fi
 
