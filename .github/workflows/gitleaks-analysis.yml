@@ -3,15 +3,29 @@ name: gitleaks
 on:
   workflow_call:
 
+env:
+  # Pinned gitleaks release. Bump both together: GITLEAKS_SHA256 is the sha256
+  # of gitleaks_<version>_linux_x64.tar.gz, checked against the release's
+  # checksums file when bumping.
+  GITLEAKS_VERSION: "8.30.1"
+  GITLEAKS_SHA256: "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"
+
 jobs:
   secret-scan:
     name: Run Gitleaks
     runs-on: ${{ github.repository_visibility != 'public' && (github.repository_owner == 'centreon' && (github.event.pull_request.commits && 'centreon-ubuntu-26.04-slim' || 'centreon-ubuntu-26.04-small') || github.repository_owner == 'quanta-computing' && 'quanta-security') || 'ubuntu-26.04' }}
     permissions:
       contents: read
-      pull-requests: read
 
     steps:
+      # pull_request_target is not compliant with the security posture: the run
+      # always fails, before anything is checked out or executed.
+      - name: Reject pull_request_target
+        if: github.event_name == 'pull_request_target'
+        run: |
+          echo "::error::pull_request_target is not allowed"
+          exit 1
+
       # Pull requests only scan their own commits: fetch them plus the merge and base commits, full history otherwise
       - name: Compute fetch depth
         id: fetch-depth
@@ -27,11 +41,249 @@ jobs:
           fetch-depth: ${{ steps.fetch-depth.outputs.value }}
           persist-credentials: false
 
+      - name: Install Gitleaks
+        run: |
+          ASSET="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          BASE_URL="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}"
+
+          workdir="$(mktemp -d)"
+          cd "$workdir"
+
+          curl -sSfL -o "${ASSET}" "${BASE_URL}/${ASSET}"
+
+          # Verify against the pinned digest, not a checksums file served
+          # from the same release as the binary.
+          echo "${GITLEAKS_SHA256}  ${ASSET}" | sha256sum -c -
+
+          mkdir -p "$HOME/.local/bin"
+          tar -xzf "${ASSET}" -C "$HOME/.local/bin" gitleaks
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+          "$HOME/.local/bin/gitleaks" version
+          cd / && rm -rf "$workdir"
+
       - name: Run secret scan
-        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITLEAKS_LICENSE: "Centreon"
-          GITLEAKS_ENABLE_COMMENTS: false
-          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: false
-          GITLEAKS_ENABLE_SUMMARY: false
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_SHA: ${{ github.sha }}
+          REF_NAME: ${{ github.ref_name }}
+          FULL_REF: ${{ github.ref }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_COMMITS: ${{ github.event.pull_request.commits }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
+          SERVER_URL: ${{ github.server_url }}
+          FETCH_TOKEN: ${{ github.token }}
+        run: |
+          set -u
+
+          # Every non-merge commit of the analyzed branch is scanned; only
+          # the commits already on the destination branch are excluded,
+          # whether or not they are also on other branches. No branch name
+          # is assumed:
+          #   pull_request: base..head, the commits not on the PR base.
+          #   workflow_dispatch: no destination to exclude, so the ref's
+          #   whole history.
+          # The event's commit SHAs can be unreachable in the clone (e.g.
+          # force-pushed away between the event and the checkout, which then
+          # fails with "invalid revision range"). Resolve the range in a loop,
+          # re-fetching between attempts, and scan only once it is valid.
+          # --text keeps a repo's .gitattributes (e.g. "* -diff") from hiding
+          # file contents from the scan.
+          LOG_OPTS=""
+          HEAD_SHA="${PR_HEAD_SHA}"
+          BASE_SHA="${PR_BASE_SHA}"
+          TIP_SHA="${EVENT_SHA}"
+
+          # persist-credentials: false leaves no token in .git/config, so the
+          # re-fetches below authenticate on their own. The header is set on
+          # each git process only, through env-scoped config
+          # (GIT_CONFIG_COUNT/KEY/VALUE): never written to disk, never on a
+          # command line, masked in the logs, and not exported to gitleaks.
+          FETCH_AUTH="$(printf 'x-access-token:%s' "${FETCH_TOKEN}" | base64 -w0)"
+          echo "::add-mask::${FETCH_AUTH}"
+          unset FETCH_TOKEN
+
+          fetch() {
+            GIT_CONFIG_COUNT=1 \
+            GIT_CONFIG_KEY_0="http.${SERVER_URL}/.extraheader" \
+            GIT_CONFIG_VALUE_0="AUTHORIZATION: basic ${FETCH_AUTH}" \
+              git fetch --no-tags --force origin "$@" \
+              || echo "::warning::git fetch failed: $*"
+          }
+
+          has_commit() { [ -n "$1" ] && git cat-file -e "$1^{commit}" 2>/dev/null; }
+
+          # Prints the commit a ref points to; prints nothing and fails if the
+          # ref is missing.
+          ref_commit() { git rev-parse --verify -q "$1^{commit}"; }
+
+          # Pull requests are checked out shallow (see "Compute fetch depth"),
+          # where a boundary commit looks parentless: gitleaks would scan its
+          # whole tree. A parentless commit in base..head is either such a
+          # boundary or shared history the base side does not reach yet
+          # (the base branch moved past the fetched depth): either way the
+          # range is not trusted until the history is deeper. On a complete
+          # clone, a root commit in the range is genuinely the branch's own.
+          SHALLOW_FILE="$(git rev-parse --git-path shallow)"
+          is_shallow() { [ "$(git rev-parse --is-shallow-repository)" = "true" ]; }
+          range_untrusted() {
+            is_shallow \
+              && [ -n "$(git rev-list --max-parents=0 -n 1 "${BASE_SHA}..${HEAD_SHA}")" ]
+          }
+
+          # Deepens the base side only (the PR side already holds all its
+          # commits), 32 to 1024 more commits doubling each round, then
+          # unshallows as a last resort (e.g. unrelated histories). Fails once
+          # out of rounds, or if a fetch brought nothing (fetch() never fails:
+          # compare the boundaries instead).
+          deepen() { # round
+            local before
+            before="$(cat "${SHALLOW_FILE}" 2>/dev/null)"
+            if [ "$1" -lt 6 ]; then
+              fetch --depth="$(( ${PR_COMMITS:-0} + 1 + (32 << $1) ))" "${BASE_SHA}"
+            elif [ "$1" -eq 6 ]; then
+              fetch --unshallow "${BASE_SHA}" "${HEAD_SHA}"
+            else
+              return 1
+            fi
+            [ "$(cat "${SHALLOW_FILE}" 2>/dev/null)" != "${before}" ]
+          }
+
+          # Sets LOG_OPTS; returns non-zero if the range is unresolvable. The
+          # range is checked by running git log with the same --log-opts
+          # gitleaks will receive.
+          compute_range() {
+            case "${EVENT_NAME}" in
+              pull_request)
+                has_commit "${HEAD_SHA}" || return 1
+                has_commit "${BASE_SHA}" || return 1
+                # Every non-merge commit the PR brings, including commits
+                # merged in from other branches, and its whole history if it
+                # shares none with the base; the base branch is excluded.
+                LOG_OPTS="--text --no-merges ${BASE_SHA}..${HEAD_SHA}"
+                round=0
+                while range_untrusted; do
+                  echo "Shallow history does not cover the PR range yet; deepening the base side (round $((round + 1)))."
+                  deepen "${round}" || return 1
+                  round=$((round + 1))
+                done
+                ;;
+              workflow_dispatch)
+                # The tip must be in the clone, otherwise the scan would miss
+                # it: retry after a re-fetch. The dispatch gets a full clone
+                # (fetch-depth 0).
+                has_commit "${TIP_SHA}" || return 1
+                LOG_OPTS="--text --no-merges ${TIP_SHA}"
+                ;;
+            esac
+
+            git log ${LOG_OPTS} >/dev/null 2>&1 || return 1
+            return 0
+          }
+
+          # actions/checkout can't be re-run in a loop, so re-fetch only what
+          # the range needs: the PR head and base branch plus the PR head/base
+          # SHAs (pull_request), or all branches plus the dispatched commit
+          # (workflow_dispatch), if the server still serves them. Only the
+          # history is refreshed; gitleaks' config and ignore files keep
+          # coming from the initial checkout. If an event SHA can no longer be fetched
+          # (force-pushed away), fall back to the live tip of its branch, so
+          # the scan covers what the branch now holds.
+          refetch() {
+            if [ "${EVENT_NAME}" = "pull_request" ] && [ -n "${PR_NUMBER}" ]; then
+              fetch "+refs/pull/${PR_NUMBER}/head:refs/remotes/origin/pr/${PR_NUMBER}" \
+                    "+refs/heads/${PR_BASE_REF}:refs/remotes/origin/${PR_BASE_REF}"
+              has_commit "${HEAD_SHA}" || fetch "${HEAD_SHA}"
+              has_commit "${BASE_SHA}" || fetch "${BASE_SHA}"
+              if ! has_commit "${HEAD_SHA}" \
+                 && live="$(ref_commit "refs/remotes/origin/pr/${PR_NUMBER}")"; then
+                echo "::warning::PR head ${HEAD_SHA} is gone; scanning the live PR tip ${live}."
+                HEAD_SHA="${live}"
+              fi
+              if ! has_commit "${BASE_SHA}" \
+                 && live="$(ref_commit "refs/remotes/origin/${PR_BASE_REF}")"; then
+                echo "::warning::PR base ${BASE_SHA} is gone; using the live ${PR_BASE_REF} tip ${live}."
+                BASE_SHA="${live}"
+              fi
+            else
+              fetch "+refs/heads/*:refs/remotes/origin/*"
+              if [ -n "${TIP_SHA}" ] && ! has_commit "${TIP_SHA}"; then
+                fetch "${TIP_SHA}"
+                # Live-tip fallback for branches only: refs/remotes/origin/ holds
+                # branches, so a tag must not resolve to a same-name branch.
+                if ! has_commit "${TIP_SHA}" \
+                   && [ "${FULL_REF}" = "refs/heads/${REF_NAME}" ] \
+                   && live="$(ref_commit "refs/remotes/origin/${REF_NAME}")"; then
+                  echo "::warning::Commit ${TIP_SHA} is gone; scanning the live ${REF_NAME} tip ${live}."
+                  TIP_SHA="${live}"
+                fi
+              fi
+            fi
+          }
+
+          case "${EVENT_NAME}" in
+            pull_request|workflow_dispatch) ;;
+            pull_request_target)
+              # Defense in depth: the first step already rejects this event.
+              echo "::error::pull_request_target is not allowed"
+              exit 1
+              ;;
+            *)
+              # Fail closed: other events (push, schedule, merge_group…) are
+              # not supported.
+              echo "::error::Unsupported event '${EVENT_NAME}' (supported: pull_request, workflow_dispatch); failing the job."
+              exit 1
+              ;;
+          esac
+
+          attempt=1
+          max_attempts=5
+          while : ; do
+            if compute_range; then
+              echo "::notice::Commit range resolved on attempt ${attempt}: ${LOG_OPTS}"
+              break
+            fi
+
+            if [ "${attempt}" -ge "${max_attempts}" ]; then
+              echo "::error::Could not resolve a valid commit range after ${max_attempts} attempts; failing the job."
+              echo "::error::Check the git fetch warnings above. If there are none, the event's commits and their branch tip are no longer reachable (branch deleted or history rewritten): push a new commit or re-run the dispatch."
+              exit 1
+            fi
+
+            delay=$((attempt * 5))
+            echo "Commit range not resolvable yet; re-fetching refs in ${delay}s (attempt ${attempt}/${max_attempts})."
+            sleep "${delay}"
+            refetch
+            attempt=$((attempt + 1))
+          done
+
+          COMMIT_COUNT="$(git log --format=%H ${LOG_OPTS} | wc -l)"
+          if [ "${COMMIT_COUNT}" -eq 0 ]; then
+            echo "::notice::No commit to scan."
+            exit 0
+          fi
+          echo "Scanning ${COMMIT_COUNT} commit(s) of the branch."
+
+          # --exit-code=2 separates "leaks found" (2) from gitleaks errors
+          # (1, e.g. a broken .gitleaks.toml), which fail closed below.
+          EXIT_CODE=0
+          gitleaks detect \
+            --source . \
+            --log-opts="${LOG_OPTS}" \
+            --exit-code=2 \
+            --redact \
+            --verbose || EXIT_CODE=$?
+
+          if [ "${EXIT_CODE}" -eq 0 ]; then
+            echo "No secrets found."
+          elif [ "${EXIT_CODE}" -eq 2 ]; then
+            echo "::error::Gitleaks has detected secrets in the scanned commits!"
+            exit 1
+          else
+            # Fail closed: a scan that did not run (e.g. a broken .gitleaks.toml)
+            # must not pass the gate.
+            echo "::error::Gitleaks failed to run (exit code: ${EXIT_CODE}); the scan did not complete, failing the job."
+            exit 1
+          fi
