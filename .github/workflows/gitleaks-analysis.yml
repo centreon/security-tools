@@ -4,11 +4,13 @@ on:
   workflow_call:
 
 env:
-  # Pinned gitleaks release. Bump both together: GITLEAKS_SHA256 is the sha256
-  # of gitleaks_<version>_linux_x64.tar.gz, checked against the release's
-  # checksums file when bumping.
-  GITLEAKS_VERSION: "8.30.1"
-  GITLEAKS_SHA256: "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"
+  # Same rule as the centreon-ubuntu-26.04 runner images (centreon-images,
+  # runners/base-ubuntu-26.04/Dockerfile): "latest" = newest stable release
+  # published at least 4 days before the run. Set a version (e.g. "8.30.1")
+  # to pin it.
+  GITLEAKS_VERSION: "latest"
+  # Installed when "latest" cannot be resolved, so the scan still runs.
+  GITLEAKS_FALLBACK_VERSION: "8.30.1"
 
 jobs:
   secret-scan:
@@ -43,20 +45,61 @@ jobs:
 
       - name: Install Gitleaks
         run: |
-          ASSET="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
-          BASE_URL="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}"
+          set -o pipefail
+
+          case "${RUNNER_ARCH}" in
+            X64) ARCH=x64 ;;
+            ARM64) ARCH=arm64 ;;
+            *) echo "::error::Unsupported runner architecture '${RUNNER_ARCH}'."; exit 1 ;;
+          esac
+
+          VERSION="${GITLEAKS_VERSION}"
+          if [ "${VERSION}" = "latest" ]; then
+            # Read the public releases feed: no token, no API rate limit. Its
+            # <updated> date is at or after the publication date, so the
+            # 4-day delay is never shortened. Drafts are not in the feed, and
+            # only vX.Y.Z tags are kept, which leaves pre-releases out.
+            cutoff="$(date -u -d '-4 days' +%Y-%m-%dT%H:%M:%SZ)"
+            VERSION="$(curl -fsSL --retry 3 "https://github.com/gitleaks/gitleaks/releases.atom" \
+              | python3 -I -c '
+          import re, sys, xml.etree.ElementTree as ET
+          ns = {"a": "http://www.w3.org/2005/Atom"}
+          for entry in ET.parse(sys.stdin).getroot().findall("a:entry", ns):
+              tag = entry.findtext("a:id", "", ns).rsplit("/", 1)[-1]
+              if re.fullmatch(r"v[0-9]+\.[0-9]+\.[0-9]+", tag) and entry.findtext("a:updated", "", ns) <= sys.argv[1]:
+                  print(tag[1:])
+          ' "${cutoff}" \
+              | sort -V | tail -1)" || VERSION=""
+            if [ -z "${VERSION}" ]; then
+              # Do not block the run: fall back to a known release, still
+              # verified against its checksums file below.
+              VERSION="${GITLEAKS_FALLBACK_VERSION}"
+              echo "::warning::gitleaks-version-fallback: could not resolve the latest gitleaks release from its releases feed; using ${VERSION}."
+            fi
+          fi
+
+          # Some runners (e.g. centreon-ubuntu-26.04-small) ship gitleaks, built
+          # with the same rule: keep it when it is the expected version,
+          # otherwise (missing, or any other version) install that release.
+          CURRENT="$(gitleaks version 2>/dev/null || true)"
+          if [ "${CURRENT#v}" = "${VERSION}" ]; then
+            echo "gitleaks ${VERSION} is already installed: $(command -v gitleaks)."
+            exit 0
+          fi
+          echo "Found gitleaks version '${CURRENT:-none}', expected ${VERSION}: installing it."
+
+          TARBALL="gitleaks_${VERSION}_linux_${ARCH}.tar.gz"
+          BASE_URL="https://github.com/gitleaks/gitleaks/releases/download/v${VERSION}"
 
           workdir="$(mktemp -d)"
           cd "$workdir"
 
-          curl -sSfL -o "${ASSET}" "${BASE_URL}/${ASSET}"
-
-          # Verify against the pinned digest, not a checksums file served
-          # from the same release as the binary.
-          echo "${GITLEAKS_SHA256}  ${ASSET}" | sha256sum -c -
+          curl -fsSL --retry 3 -o "${TARBALL}" "${BASE_URL}/${TARBALL}"
+          curl -fsSL --retry 3 "${BASE_URL}/gitleaks_${VERSION}_checksums.txt" \
+            | grep " ${TARBALL}\$" | sha256sum -c -
 
           mkdir -p "$HOME/.local/bin"
-          tar -xzf "${ASSET}" -C "$HOME/.local/bin" gitleaks
+          tar -xzf "${TARBALL}" -C "$HOME/.local/bin" gitleaks
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
           "$HOME/.local/bin/gitleaks" version
