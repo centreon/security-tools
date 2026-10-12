@@ -78,7 +78,7 @@ jobs:
             fi
           fi
 
-          # Some runners (e.g. centreon-ubuntu-26.04-small) ship gitleaks, built
+          # The centreon-ubuntu-26.04-* runners ship gitleaks, built
           # with the same rule: keep it when it is the expected version,
           # otherwise (missing, or any other version) install that release.
           CURRENT="$(gitleaks version 2>/dev/null || true)"
