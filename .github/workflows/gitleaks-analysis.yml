@@ -47,12 +47,6 @@ jobs:
         run: |
           set -o pipefail
 
-          case "${RUNNER_ARCH}" in
-            X64) ARCH=x64 ;;
-            ARM64) ARCH=arm64 ;;
-            *) echo "::error::Unsupported runner architecture '${RUNNER_ARCH}'."; exit 1 ;;
-          esac
-
           VERSION="${GITLEAKS_VERSION}"
           if [ "${VERSION}" = "latest" ]; then
             # Read the public releases feed: no token, no API rate limit. Its
