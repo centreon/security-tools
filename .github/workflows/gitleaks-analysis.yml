@@ -262,11 +262,6 @@ jobs:
 
           case "${EVENT_NAME}" in
             pull_request|workflow_dispatch) ;;
-            pull_request_target)
-              # Defense in depth: the first step already rejects this event.
-              echo "::error::pull_request_target is not allowed"
-              exit 1
-              ;;
             *)
               # Fail closed: other events (push, schedule, merge_group…) are
               # not supported.
