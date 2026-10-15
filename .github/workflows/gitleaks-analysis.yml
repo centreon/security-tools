@@ -4,10 +4,11 @@ on:
   workflow_call:
 
 env:
-  # Same rule as the centreon-ubuntu-26.04 runner images (centreon-images,
-  # runners/base-ubuntu-26.04/Dockerfile): "latest" = newest stable release
-  # published at least 4 days before the run. Set a version (e.g. "8.30.1")
-  # to pin it.
+  # Version installed on the runners that do not ship gitleaks (see "Install
+  # Gitleaks"). Same rule as the centreon-ubuntu-26.04 runner images
+  # (centreon-images, runners/base-ubuntu-26.04/Dockerfile): "latest" =
+  # newest stable release published at least 4 days before the run. Set a
+  # version (e.g. "8.30.1") to pin it.
   GITLEAKS_VERSION: "latest"
   # Installed when "latest" cannot be resolved, so the scan still runs.
   GITLEAKS_FALLBACK_VERSION: "8.30.1"
@@ -28,24 +29,113 @@ jobs:
           echo "::error::pull_request_target is not allowed"
           exit 1
 
-      # Pull requests only scan their own commits: fetch them plus the merge and base commits, full history otherwise
-      - name: Compute fetch depth
-        id: fetch-depth
-        env:
-          PR_COMMITS: ${{ github.event.pull_request.commits }}
-        run: |
-          echo "value=$(( ${PR_COMMITS:-0} > 0 ? PR_COMMITS + 2 : 0 ))" >> "$GITHUB_OUTPUT"
-        shell: bash
-
+      # Plain git instead of actions/checkout: the job then downloads no
+      # action at "Set up job", where concurrent jobs behind the shared
+      # egress of the self-hosted runners get rate limited by
+      # codeload.github.com (429) and fail before any step runs. Same clone
+      # as actions/checkout with persist-credentials: false:
+      #   pull_request: the PR commits plus the merge and base commits
+      #   (depth = PR commits + 2), the merge commit checked out detached.
+      #   workflow_dispatch: full history of all branches and tags, the
+      #   dispatched commit checked out detached.
       - name: Checkout Repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: ${{ steps.fetch-depth.outputs.value }}
-          persist-credentials: false
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_SHA: ${{ github.sha }}
+          REF_NAME: ${{ github.ref_name }}
+          FULL_REF: ${{ github.ref }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_COMMITS: ${{ github.event.pull_request.commits }}
+          REPOSITORY: ${{ github.repository }}
+          SERVER_URL: ${{ github.server_url }}
+          FETCH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          # Same authentication as the re-fetches of "Run secret scan": the
+          # header is set on each git process only, never written to
+          # .git/config.
+          FETCH_AUTH="$(printf 'x-access-token:%s' "${FETCH_TOKEN}" | base64 -w0)"
+          echo "::add-mask::${FETCH_AUTH}"
+          unset FETCH_TOKEN
+
+          # Retried like actions/checkout does: 3 attempts.
+          fetch() {
+            local try
+            for try in 1 2 3; do
+              GIT_CONFIG_COUNT=1 \
+              GIT_CONFIG_KEY_0="http.${SERVER_URL}/.extraheader" \
+              GIT_CONFIG_VALUE_0="AUTHORIZATION: basic ${FETCH_AUTH}" \
+                git fetch --no-tags --prune --no-recurse-submodules origin "$@" && return 0
+              if [ "${try}" -lt 3 ]; then
+                echo "::warning::git fetch failed (attempt ${try}/3); retrying in $((try * 10))s."
+                sleep $((try * 10))
+              fi
+            done
+            echo "::error::git fetch failed after 3 attempts: $*"
+            return 1
+          }
+
+          # Start from an empty workspace, like actions/checkout's default
+          # clean.
+          find . -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +
+          git init -q .
+          git config --local gc.auto 0
+          git remote add origin "${SERVER_URL}/${REPOSITORY}"
+
+          case "${EVENT_NAME}" in
+            pull_request)
+              # Pull requests only scan their own commits: fetch them plus
+              # the merge and base commits.
+              DEPTH_OPT=()
+              if [ "${PR_COMMITS:-0}" -gt 0 ]; then
+                DEPTH_OPT=(--depth="$((PR_COMMITS + 2))")
+              fi
+              fetch "${DEPTH_OPT[@]}" "+${EVENT_SHA}:refs/remotes/pull/${PR_NUMBER}/merge"
+              git checkout -q --force --detach "refs/remotes/pull/${PR_NUMBER}/merge"
+              ;;
+            workflow_dispatch)
+              fetch "+refs/heads/*:refs/remotes/origin/*" "+refs/tags/*:refs/tags/*"
+              if git cat-file -e "${EVENT_SHA}^{commit}" 2>/dev/null; then
+                git checkout -q --force --detach "${EVENT_SHA}"
+              elif [ "${FULL_REF}" = "refs/heads/${REF_NAME}" ]; then
+                # Force-pushed away since the dispatch: check out the live
+                # branch tip; "Run secret scan" falls back to it too.
+                echo "::warning::Commit ${EVENT_SHA} is gone; checking out the live ${REF_NAME} tip."
+                git checkout -q --force --detach "refs/remotes/origin/${REF_NAME}"
+              else
+                echo "::error::Commit ${EVENT_SHA} is not reachable from ${FULL_REF}."
+                exit 1
+              fi
+              ;;
+            *)
+              # "Run secret scan" fails the job on unsupported events.
+              echo "Unsupported event '${EVENT_NAME}': nothing to check out."
+              exit 0
+              ;;
+          esac
+          echo "Checked out $(git rev-parse HEAD)."
 
       - name: Install Gitleaks
+        env:
+          # Same criterion as the centreon branch of runs-on: private and
+          # internal centreon repositories run on the centreon-ubuntu-26.04-*
+          # runners, which ship gitleaks. The quanta-security runners do not
+          # yet (MON-212266): they install it like the public runners.
+          RUNNER_SHIPS_GITLEAKS: ${{ github.repository_visibility != 'public' && github.repository_owner == 'centreon' }}
         run: |
           set -uo pipefail
+
+          # The runner image team owns the version of the shipped binary:
+          # only check that it runs, and fail closed if it is missing.
+          if [ "${RUNNER_SHIPS_GITLEAKS}" = "true" ]; then
+            if ! CURRENT="$(gitleaks version 2>/dev/null)"; then
+              echo "::error::This runner must ship gitleaks, but 'gitleaks version' failed; failing the job."
+              exit 1
+            fi
+            echo "Using the runner's gitleaks ${CURRENT}: $(command -v gitleaks)."
+            exit 0
+          fi
 
           case "${RUNNER_ARCH}" in
             X64) ARCH=x64 ;;
@@ -78,8 +168,7 @@ jobs:
             fi
           fi
 
-          # The centreon-ubuntu-26.04-* runners ship gitleaks, built
-          # with the same rule: keep it when it is the expected version,
+          # Keep a gitleaks already on PATH when it is the expected version,
           # otherwise (missing, or any other version) install that release.
           CURRENT="$(gitleaks version 2>/dev/null || true)"
           if [ "${CURRENT#v}" = "${VERSION}" ]; then
@@ -139,7 +228,7 @@ jobs:
           BASE_SHA="${PR_BASE_SHA}"
           TIP_SHA="${EVENT_SHA}"
 
-          # persist-credentials: false leaves no token in .git/config, so the
+          # "Checkout Repository" leaves no token in .git/config, so the
           # re-fetches below authenticate on their own. The header is set on
           # each git process only, through env-scoped config
           # (GIT_CONFIG_COUNT/KEY/VALUE): never written to disk, never on a
@@ -162,7 +251,7 @@ jobs:
           # ref is missing.
           ref_commit() { git rev-parse --verify -q "$1^{commit}"; }
 
-          # Pull requests are checked out shallow (see "Compute fetch depth"),
+          # Pull requests are checked out shallow (see "Checkout Repository"),
           # where a boundary commit looks parentless: gitleaks would scan its
           # whole tree. A parentless commit in base..head is either such a
           # boundary or shared history the base side does not reach yet
@@ -226,7 +315,7 @@ jobs:
             return 0
           }
 
-          # actions/checkout can't be re-run in a loop, so re-fetch only what
+          # The checkout can't be re-run in a loop, so re-fetch only what
           # the range needs: the PR head and base branch plus the PR head/base
           # SHAs (pull_request), or all branches plus the dispatched commit
           # (workflow_dispatch), if the server still serves them. Only the
