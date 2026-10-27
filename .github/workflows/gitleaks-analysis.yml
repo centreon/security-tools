@@ -148,17 +148,19 @@ jobs:
             # Read the public releases feed: no token, no API rate limit. Its
             # <updated> date is at or after the publication date, so the
             # 4-day delay is never shortened. Drafts are not in the feed, and
-            # only vX.Y.Z tags are kept, which leaves pre-releases out.
+            # only vX.Y.Z tags are kept, which leaves pre-releases out. Parsed
+            # with awk: the quanta-security runners do not ship Python. GitHub
+            # writes each entry's <id> and <updated> on their own lines.
             cutoff="$(date -u -d '-4 days' +%Y-%m-%dT%H:%M:%SZ)"
             VERSION="$(curl -fsSL --retry 3 "https://github.com/gitleaks/gitleaks/releases.atom" \
-              | python3 -I -c '
-          import re, sys, xml.etree.ElementTree as ET
-          ns = {"a": "http://www.w3.org/2005/Atom"}
-          for entry in ET.parse(sys.stdin).getroot().findall("a:entry", ns):
-              tag = entry.findtext("a:id", "", ns).rsplit("/", 1)[-1]
-              if re.fullmatch(r"v[0-9]+\.[0-9]+\.[0-9]+", tag) and entry.findtext("a:updated", "", ns) <= sys.argv[1]:
-                  print(tag[1:])
-          ' "${cutoff}" \
+              | awk -v cutoff="${cutoff}" '
+                  /<entry>/ { in_entry = 1; tag = "" }
+                  in_entry && /<id>/ { sub(/<\/id>.*/, ""); sub(/.*\//, ""); tag = $0 }
+                  in_entry && /<updated>/ {
+                    sub(/.*<updated>/, ""); sub(/<\/updated>.*/, "")
+                    if (tag ~ /^v[0-9]+\.[0-9]+\.[0-9]+$/ && $0 <= cutoff) print substr(tag, 2)
+                  }
+                  /<\/entry>/ { in_entry = 0 }' \
               | sort -V | tail -1)" || VERSION=""
             if [ -z "${VERSION}" ]; then
               # Do not block the run: fall back to a known release, still
