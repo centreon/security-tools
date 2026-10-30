@@ -16,6 +16,13 @@ env:
 jobs:
   secret-scan:
     name: Run Gitleaks
+    # Pull requests from forks are skipped: their runs never get a job
+    # through (they time out), which fails the check and raises a false
+    # alert. Only pull requests from a branch of the repository itself are
+    # scanned; a deleted fork (null head repo) is skipped too. Other events,
+    # pull_request_target included, still reach the job and its fail-closed
+    # steps.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ${{ github.repository_visibility != 'public' && (github.repository_owner == 'centreon' && (github.event.pull_request.commits && 'centreon-ubuntu-26.04-slim' || 'centreon-ubuntu-26.04-small') || github.repository_owner == 'quanta-computing' && 'quanta-security') || 'ubuntu-26.04' }}
     permissions:
       contents: read
