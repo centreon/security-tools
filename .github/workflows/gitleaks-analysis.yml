@@ -16,7 +16,8 @@ env:
 jobs:
   secret-scan:
     name: Run Gitleaks
-    runs-on: ${{ github.repository_visibility != 'public' && (github.repository_owner == 'centreon' && (github.event.pull_request.commits && 'centreon-ubuntu-26.04-slim' || 'centreon-ubuntu-26.04-small') || github.repository_owner == 'quanta-computing' && 'quanta-security') || 'ubuntu-26.04' }}
+    # Both orgs register the centreon-ubuntu-26.04-* labels on their own scale sets.
+    runs-on: ${{ github.repository_visibility != 'public' && contains(fromJSON('["centreon", "quanta-computing"]'), github.repository_owner) && (github.event.pull_request.commits && 'centreon-ubuntu-26.04-slim' || 'centreon-ubuntu-26.04-small') || 'ubuntu-26.04' }}
     permissions:
       contents: read
 
@@ -118,11 +119,10 @@ jobs:
 
       - name: Install Gitleaks
         env:
-          # Same criterion as the centreon branch of runs-on: private and
-          # internal centreon repositories run on the centreon-ubuntu-26.04-*
-          # runners, which ship gitleaks. The quanta-security runners do not
-          # yet (MON-212266): they install it like the public runners.
-          RUNNER_SHIPS_GITLEAKS: ${{ github.repository_visibility != 'public' && github.repository_owner == 'centreon' }}
+          # Same criterion as runs-on: private and internal centreon and
+          # quanta-computing repositories run on the centreon-ubuntu-26.04-*
+          # runners, which ship gitleaks.
+          RUNNER_SHIPS_GITLEAKS: ${{ github.repository_visibility != 'public' && contains(fromJSON('["centreon", "quanta-computing"]'), github.repository_owner) }}
         run: |
           set -uo pipefail
 
